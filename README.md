@@ -1,0 +1,54 @@
+# ZESTMOK (오목)
+
+브라우저에서 즐기는 오목 게임. 15×15 판, 자유룰(5목 이상이면 승리).
+
+- **AI 대전** — 쉬움 / 보통 / 어려움
+- **친구와 온라인 대전** — 방 코드(6자리)로 1:1 접속
+- 모바일 터치, 키보드 조작(방향키 + Enter/Space), 스크린리더 안내 지원
+
+배포: https://builtkwon.github.io/ZESTMOK/ (GitHub Pages, `main` 브랜치 루트)
+
+## 실행
+
+빌드 과정이 없는 정적 사이트입니다. `index.html`을 바로 열거나 로컬 서버를 띄우면 됩니다.
+
+```sh
+npm run serve   # http://localhost:8080
+```
+
+## 온라인 대전 구조
+
+- 서버 코드는 없습니다. 브라우저끼리 WebRTC(PeerJS 1.5.4, `vendor/`)로 직접 통신하고, 연결 중개만 PeerJS 공용 브로커(`0.peerjs.com`)를 씁니다.
+- 방 만들기 → 6자리 코드 공유 → 상대가 방 참가에서 입력. 방은 2명까지입니다.
+- 받은 수는 범위·차례·빈 칸을 검증하고, 어긋나면 호스트 기준으로 보드를 다시 맞춥니다.
+- 연결이 끊기면 30초간 재접속을 기다립니다(게스트 자동 재접속). 시간이 지나면 대국이 무효로 종료됩니다.
+- 재시작은 상대가 수락해야 진행됩니다.
+
+### 연결이 안 되는 경우 (TURN)
+
+같은 망이나 일반 가정용 망은 STUN만으로 연결됩니다. 모바일 데이터, 회사·학교망 등에서 연결이 안 되면 `index.html`의 `ICE_SERVERS`에 TURN 서버를 추가하세요.
+
+```js
+{urls: 'turn:YOUR_TURN_HOST:443?transport=tcp', username: 'USER', credential: 'PASS'},
+```
+
+정적 페이지이므로 이 값은 공개됩니다. 사용 한도가 있는 무료 TURN 계정을 쓰는 것을 권장합니다.
+
+## 구성
+
+| 파일 | 설명 |
+|---|---|
+| `index.html` | UI, 게임 로직, 온라인 대전 |
+| `ai.js` | AI (패턴 평가 + 알파베타 탐색) |
+| `img/` | 돌 이미지, 파비콘, 공유용 OG 이미지 |
+| `vendor/peerjs.min.js` | PeerJS 1.5.4 (MIT) |
+| `tests/` | 테스트 |
+
+## 테스트
+
+```sh
+npm test                    # AI 단위 테스트 (Node만 필요)
+npm i && npx playwright install chromium
+npm run test:ui             # 브라우저 UI/키보드/모바일 테스트 (로컬)
+npm run test:online         # 2개 브라우저 온라인 대전 E2E (인터넷 필요)
+```
