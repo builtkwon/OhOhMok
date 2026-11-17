@@ -1785,6 +1785,7 @@ function tmShowEnd() {
   stone.style.background = ''; stone.style.boxShadow = '';
   document.getElementById('modal-winner').textContent = `${w === 1 ? '흑' : '백'}팀 승리!` + (mine ? ' 🎉' : '');
   document.getElementById('modal-sub').textContent = mine ? '우리 팀이 이겼습니다!' : (r.reason === 'wipe' ? '상대 팀 전원이 이탈했습니다.' : '상대 팀이 이겼습니다.');
+  resultTitle('승리');
   showOverlay('overlay');
 }
 function tmBadges() {
@@ -2021,6 +2022,11 @@ function updateScores(){
   document.getElementById('score-white').textContent=scores[2];
 }
 
+// result title: "AI 대전 · 어려움" in AI mode, otherwise the given default
+function resultTitle(def){
+  document.querySelector('#overlay .modal-title').textContent=gameMode==='ai'?'AI 대전 · '+levelName():def;
+}
+
 function showWinOverlay(player){
   const overlay=document.getElementById('overlay');
   const stone=document.getElementById('modal-stone');
@@ -2033,6 +2039,7 @@ function showWinOverlay(player){
   else isHuman=player===myOnlinePlayer;
   winner.textContent=isHuman?'ZEST 승리! 🎉':'ZAIST 승리!';
   sub.textContent=isHuman?'당신이 이겼습니다!':(gameMode==='ai'?'🤖 AI가 이겼습니다':'상대방이 이겼습니다');
+  resultTitle('승리');
   showOverlay('overlay');
 }
 
@@ -2042,6 +2049,7 @@ function showDrawOverlay(){
   document.getElementById('modal-stone').style.boxShadow='0 4px 20px rgba(0,0,0,0.5)';
   document.getElementById('modal-winner').textContent='무승부!';
   document.getElementById('modal-sub').textContent='보드가 가득 찼습니다';
+  resultTitle('승리');
   showOverlay('overlay');
 }
 
@@ -2055,6 +2063,7 @@ function showEndOverlay(title,sub){
   stone.style.background='linear-gradient(135deg,#222 50%,#ccc 50%)';
   document.getElementById('modal-winner').textContent=title;
   document.getElementById('modal-sub').textContent=sub;
+  resultTitle('승리');
   showOverlay('overlay');
 }
 

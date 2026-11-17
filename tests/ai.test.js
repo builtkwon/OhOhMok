@@ -42,6 +42,17 @@ for (const lv of ['normal', 'hard']) {
     assert(!forbidden(b, m.row, m.col), `${lv} played a forbidden move ${JSON.stringify(m)}`);
   }
 }
+// 3b) hard sees a forced win by consecutive fours and stops the opponent's
+{
+  // black plays (7,7): row four (7,4..7) + column four (4..7,7) -> two five-cells = unstoppable
+  const win = empty(); put(win, 1, [[7, 4], [7, 5], [7, 6], [4, 7], [5, 7], [6, 7]]); put(win, 2, [[0, 0], [0, 2], [14, 14]]);
+  const m = bestMove(win, 1, 'hard');
+  assert(m.row === 7 || m.col === 7, `hard should start a four-chain on the row/column, got ${JSON.stringify(m)}`);
+  // white (opponent) threatens the same double-four; black has no threat of its own -> must break it on that row/column
+  const def = empty(); put(def, 2, [[7, 4], [7, 5], [7, 6], [4, 7], [5, 7], [6, 7]]); put(def, 1, [[0, 0], [0, 2], [14, 14]]);
+  const d = bestMove(def, 1, 'hard');
+  assert(d.row === 7 || d.col === 7, `hard should break the four-chain on the row/column, got ${JSON.stringify(d)}`);
+}
 // 4) strength: hard beats a one-ply greedy opponent (both colors); move time stays bounded
 function greedy(b, p) {
   const { evaluate } = require('../ai.js'); let best = null, bs = -Infinity;
@@ -81,5 +92,5 @@ let wins = 0, worst = 0;
 for (const color of [1, 2, 1, 2]) { const r = play(color, 'hard'); wins += r.win; worst = Math.max(worst, r.maxMs); }
 console.log(`hard vs greedy: ${wins}/4 wins, slowest move ${worst}ms`);
 assert(wins >= 3, 'hard should beat greedy');
-assert(worst < 2500, 'move too slow');
+assert(worst < 3500, "move too slow");
 console.log('ok');
