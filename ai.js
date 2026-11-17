@@ -1,4 +1,6 @@
-// Gomoku AI (free rules: 5+ in a row wins). board[r][c]: 0 empty, 1 black, 2 white.
+// Gomoku AI. board[r][c]: 0 empty, 1 black, 2 white. Win = 5+ in a row.
+// Korean common rules for the AI's own play: when the AI is black it never plays a 3-3 (쌍삼) or a 6+ (장목);
+// white is unrestricted. 4-4 is allowed. ponytail: a "three" whose completing point is itself forbidden still counts as a three.
 // GomokuAI.bestMove(board, player, level) -> {row, col}; level: 'easy' | 'normal' | 'hard'.
 (function (root) {
   const N = 15;
@@ -6,9 +8,9 @@
   const V = [0, 2, 12, 120, 1500, FIVE]; // score of a 5-cell window by own stone count (no enemy stones in it)
   const DIRS = [[0, 1], [1, 0], [1, 1], [1, -1]];
   const LEVELS = {
-    easy:   { depth: 1, K: 6,  ms: 0 },
-    normal: { depth: 2, K: 12, ms: 800 },
-    hard:   { depth: 6, K: 10, ms: 1500 },
+    easy:   { depth: 1, K: 5, ms: 0 },
+    normal: { depth: 2, K: 8, ms: 500 },
+    hard:   { depth: 4, K: 8, ms: 1000 },
   };
 
   const inside = (r, c) => r >= 0 && r < N && c >= 0 && c < N;
@@ -46,6 +48,44 @@
     return g;
   }
 
+  // contiguous run of `p` through (r,c) along (dr,dc): {n, lo, hi} offsets from (r,c)
+  function run(b, r, c, dr, dc, p) {
+    let lo = 0, hi = 0;
+    while (inside(r + dr * (lo - 1), c + dc * (lo - 1)) && b[r + dr * (lo - 1)][c + dc * (lo - 1)] === p) lo--;
+    while (inside(r + dr * (hi + 1), c + dc * (hi + 1)) && b[r + dr * (hi + 1)][c + dc * (hi + 1)] === p) hi++;
+    return { n: hi - lo + 1, lo, hi };
+  }
+  // after placing at (r,c): is there a way to make an open four (exactly 4, both ends empty) using this stone?
+  function openThree(b, r, c, dr, dc, p) {
+    for (let k = -4; k <= 4; k++) {
+      const er = r + dr * k, ec = c + dc * k;
+      if (!k || !inside(er, ec) || b[er][ec]) continue;
+      b[er][ec] = p;
+      const x = run(b, er, ec, dr, dc, p);
+      const lr = er + dr * (x.lo - 1), lc = ec + dc * (x.lo - 1), hr = er + dr * (x.hi + 1), hc = ec + dc * (x.hi + 1);
+      const open = x.n === 4 && -k >= x.lo && -k <= x.hi && inside(lr, lc) && !b[lr][lc] && inside(hr, hc) && !b[hr][hc];
+      b[er][ec] = 0;
+      if (open) return true;
+    }
+    return false;
+  }
+  // black at empty (r,c): exactly five wins (never forbidden); otherwise 6+ or 3-3 is forbidden
+  function forbidden(b, r, c) {
+    b[r][c] = 1;
+    let five = false, over = false, threes = 0;
+    for (const [dr, dc] of DIRS) { const n = run(b, r, c, dr, dc, 1).n; if (n === 5) five = true; else if (n > 5) over = true; }
+    if (!five && !over) for (const [dr, dc] of DIRS) if (openThree(b, r, c, dr, dc, 1)) threes++;
+    b[r][c] = 0;
+    return !five && (over || threes >= 2);
+  }
+  function exactFive(b, r, c, p) {
+    b[r][c] = p;
+    const ok = DIRS.some(([dr, dc]) => run(b, r, c, dr, dc, p).n === 5);
+    b[r][c] = 0;
+    return ok;
+  }
+  let koreanBlack = false; // set per bestMove call: AI plays black under Korean rules
+
   // candidate moves near existing stones, best first. Forced moves (win / block five) are returned alone.
   function candidates(b, p, K) {
     const q = 3 - p, seen = new Uint8Array(N * N), list = [];
@@ -55,8 +95,11 @@
         const nr = r + dr, nc = c + dc;
         if (!inside(nr, nc) || b[nr][nc] || seen[nr * N + nc]) continue;
         seen[nr * N + nc] = 1;
+        const rule = koreanBlack && p === 1;
+        if (rule && forbidden(b, nr, nc)) continue;
         const gm = gain(b, nr, nc, p), go = gain(b, nr, nc, q);
-        list.push({ row: nr, col: nc, win: gm >= FIVE - V[4], block: go >= FIVE - V[4], pri: gm + go * 0.9 });
+        const win = gm >= FIVE - V[4] && (!rule || exactFive(b, nr, nc, 1));
+        list.push({ row: nr, col: nc, win, block: go >= FIVE - V[4], pri: gm + go * 0.9 });
       }
     }
     const w = list.find(m => m.win);
@@ -88,6 +131,7 @@
 
   function bestMove(b, p, level) {
     const L = LEVELS[level] || LEVELS.normal;
+    koreanBlack = p === 1;
     const stones = b.flat().filter(Boolean).length;
     if (!stones) return { row: 7, col: 7 };
     if (stones === 1) { // answer next to the first stone
@@ -97,11 +141,14 @@
       }
     }
     const cands = candidates(b, p, L.K);
-    if (!cands.length) return { row: 7, col: 7 };
+    if (!cands.length) { // every nearby cell is forbidden: any legal empty cell
+      for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (!b[r][c] && !(koreanBlack && p === 1 && forbidden(b, r, c))) return { row: r, col: c };
+      return { row: 7, col: 7 };
+    }
     if (cands[0].win) return cands[0];
     if (level === 'easy') {
-      // always takes a win; blocks a five 70% of the time; otherwise a random pick among the top few
-      if (cands[0].block && Math.random() < 0.7) return cands[0];
+      // always takes a win; blocks a five 50% of the time; otherwise a random pick among the top few
+      if (cands[0].block && Math.random() < 0.5) return cands[0];
       const top = cands.slice(0, 4);
       return Math.random() < 0.5 ? top[0] : top[Math.floor(Math.random() * top.length)];
     }
@@ -125,7 +172,7 @@
     return best;
   }
 
-  const api = { bestMove, evaluate };
+  const api = { bestMove, evaluate, forbidden };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GomokuAI = api;
 })(typeof window !== 'undefined' ? window : globalThis);
