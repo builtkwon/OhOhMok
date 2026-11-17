@@ -1,6 +1,6 @@
 // Run: node tests/ai.test.js
 const assert = require('assert');
-const { bestMove } = require('../ai.js');
+const { bestMove, forbidden } = require('../ai.js');
 const N = 15;
 const empty = () => Array.from({ length: N }, () => Array(N).fill(0));
 const put = (b, p, cells) => cells.forEach(([r, c]) => { b[r][c] = p; });
@@ -22,6 +22,25 @@ for (const lv of ['normal', 'hard']) {
   const b = empty(); put(b, 2, [[7, 6], [7, 7], [7, 8]]); put(b, 1, [[6, 6], [8, 9]]);
   const m = bestMove(b, 1, 'hard');
   assert(m.row === 7 && (m.col === 5 || m.col === 9), `hard should cap open three, got ${JSON.stringify(m)}`);
+}
+// Korean rules (AI as black): never plays 3-3 or 6+; exact five still wins
+{
+  // 3-3 at (7,7): open threes (7,5),(7,6) and (5,7),(6,7)
+  const b = empty(); put(b, 1, [[7, 5], [7, 6], [5, 7], [6, 7]]); put(b, 2, [[0, 0], [0, 2], [14, 14], [14, 12]]);
+  assert(forbidden(b, 7, 7), '3-3 must be forbidden');
+  // 4-4 is allowed
+  const c = empty(); put(c, 1, [[7, 4], [7, 5], [7, 6], [4, 7], [5, 7], [6, 7]]);
+  assert(!forbidden(c, 7, 7), '4-4 allowed');
+  // 6+ forbidden, but a move making exactly five is fine
+  const d = empty(); put(d, 1, [[7, 3], [7, 4], [7, 5], [7, 7], [7, 8]]);
+  assert(forbidden(d, 7, 6), 'overline forbidden');
+  const e = empty(); put(e, 1, [[7, 3], [7, 4], [7, 5], [7, 6]]);
+  assert(!forbidden(e, 7, 7) && !forbidden(e, 7, 2), 'exact five allowed');
+  // the AI (black) must not pick the 3-3 point even when it is the best-looking move
+  for (const lv of ['easy', 'normal', 'hard']) for (let i = 0; i < 20; i++) {
+    const m = bestMove(b, 1, lv);
+    assert(!forbidden(b, m.row, m.col), `${lv} played a forbidden move ${JSON.stringify(m)}`);
+  }
 }
 // 4) strength: hard beats a one-ply greedy opponent (both colors); move time stays bounded
 function greedy(b, p) {
@@ -51,6 +70,7 @@ function play(aiColor, lv) {
     const m = turn === aiColor ? bestMove(b, turn, lv) : greedy(b, turn);
     if (turn === aiColor) maxMs = Math.max(maxMs, Date.now() - t0);
     assert(b[m.row][m.col] === 0, 'illegal move');
+    if (turn === aiColor && aiColor === 1) assert(!forbidden(b, m.row, m.col), 'AI black broke Korean rules');
     b[m.row][m.col] = turn;
     if (five(b, m.row, m.col)) return { win: turn === aiColor, maxMs };
     turn = 3 - turn;

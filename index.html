@@ -698,7 +698,7 @@
   }
   .room-input:focus { border-color: var(--accent-gold); }
   .room-input::placeholder { color: rgba(160,144,96,0.4); font-size: 1.2rem; letter-spacing: 0.1em; }
-  .room-status { font-size: 0.78rem; margin-bottom: 12px; min-height: 20px; }
+  .room-status { font-size: 0.78rem; margin-bottom: 12px; min-height: 20px; color: var(--text-secondary); }
   .room-status.ok { color: #6dcc8a; }
   .room-status.err { color: #ff7070; }
   .back-btn { font-size: 0.75rem; color: var(--text-secondary); background: none; border: none; cursor: pointer; margin-top: 12px; text-decoration: underline; }
@@ -731,6 +731,7 @@
   /* a11y helpers */
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   button.mode-card, button.stone-choice, button.room-code-box, .level-chip { font: inherit; color: inherit; }
+  button.room-code-box { color: var(--accent-gold); }
   button:focus-visible, .level-chip:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 2px; }
   .board-surface:focus-within { outline: 2px solid var(--accent-gold); outline-offset: 3px; }
   .board-click:focus { outline: none; }
