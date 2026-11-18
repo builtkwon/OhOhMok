@@ -142,6 +142,58 @@
     }
     return null;
   }
+  // ── per-browser learning ──────────────────────────────────────────────────
+  // mem.avoid[key] = AI moves (at that position) that preceded a human win; mem.hum[key]["r,c"] = [games, wins] of the human's
+  // replies at that position (key = position with the human to move); mem.streak = consecutive human wins.
+  // ponytail: exact-position matching only (no pattern generalization), capped at CAP keys, oldest dropped.
+  const CAP = 1500;
+  let mem = { avoid: {}, hum: {}, streak: 0 };
+  function posKey(b, p) {
+    const out = [p];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (b[r][c]) out.push((r * N + c).toString(36) + b[r][c]);
+    return out.join(',');
+  }
+  const setMemory = (m) => { mem = { avoid: (m && m.avoid) || {}, hum: (m && m.hum) || {}, streak: (m && m.streak) | 0 }; };
+  const getMemory = () => mem;
+  const trim = (o) => { const k = Object.keys(o); if (k.length > CAP) for (const x of k.slice(0, k.length - CAP + 200)) delete o[x]; };
+  // history: [{p, row, col, key}] in play order (key = posKey before the move). winner: 1|2|0 (draw).
+  function learn(history, aiColor, winner) {
+    const hw = winner && winner !== aiColor;
+    for (const h of history) {
+      if (h.p === aiColor) continue;
+      const e = (mem.hum[h.key] = mem.hum[h.key] || {}), rc = h.row + ',' + h.col, v = (e[rc] = e[rc] || [0, 0]);
+      v[0]++; if (hw) v[1]++;
+    }
+    if (hw) {
+      mem.streak++;
+      // dodge the AI's last moves; the longer the human's streak, the further back we go
+      const mine = history.filter(h => h.p === aiColor).slice(-(3 + 2 * Math.min(mem.streak - 1, 3)));
+      for (const h of mine) { const a = (mem.avoid[h.key] = mem.avoid[h.key] || []), rc = h.row + ',' + h.col; if (!a.includes(rc)) a.push(rc); }
+    } else if (winner === aiColor) mem.streak = 0;
+    trim(mem.hum); trim(mem.avoid);
+  }
+  // the human's most likely reply at a position (human to move), preferring ones that won before
+  function predict(b, q) {
+    const e = mem.hum[posKey(b, q)];
+    if (!e) return null;
+    let best = null, bs = -1;
+    for (const rc in e) { const sc = e[rc][1] * 1000 + e[rc][0]; if (sc > bs) { bs = sc; best = rc; } }
+    const [r, c] = best.split(',').map(Number);
+    return { row: r, col: c, wins: e[best][1] };
+  }
+  // drop moves that were lost with before, or that walk into a reply the human has already won with
+  function unlearned(b, p, cands) {
+    const av = mem.avoid[posKey(b, p)], q = 3 - p;
+    const ok = cands.filter(m => {
+      if (av && av.includes(m.row + ',' + m.col)) return false;
+      b[m.row][m.col] = p;
+      const pr = predict(b, q);
+      b[m.row][m.col] = 0;
+      return !(pr && pr.wins > 0);
+    });
+    return ok.length ? ok : cands;
+  }
+
   let koreanBlack = false; // set per bestMove call: AI plays black under Korean rules
 
   // candidate moves near existing stones, best first. Forced moves (win / block five) are returned alone.
@@ -198,7 +250,11 @@
         if (inside(r + d[0], c + d[1])) return { row: r + d[0], col: c + d[1] };
       }
     }
-    const cands = candidates(b, p, L.K);
+    // adaptive: the longer the human's win streak, the deeper/wider the search (normal and up)
+    const boost = level === 'easy' ? 0 : Math.min(mem.streak, 3);
+    const D = L.depth + (boost > 0 ? Math.min(boost, 2) : 0), KK = L.K + boost * 2, MS = L.ms * (1 + 0.25 * boost);
+    let cands = candidates(b, p, KK);
+    if (level !== 'easy' && cands.length && !cands[0].win && !cands[0].block) cands = unlearned(b, p, cands);
     if (!cands.length) { // every nearby cell is forbidden: any legal empty cell
       for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (!b[r][c] && !(koreanBlack && p === 1 && forbidden(b, r, c))) return { row: r, col: c };
       return { row: 7, col: 7 };
@@ -211,7 +267,7 @@
       return Math.random() < 0.5 ? top[0] : top[Math.floor(Math.random() * top.length)];
     }
     if (L.vcf) { // forced win for me, or stop the opponent's forced win
-      const q = 3 - p, d0 = { t: Date.now() + L.ms * 0.5, out: false };
+      const q = 3 - p, d0 = { t: Date.now() + MS * 0.5, out: false };
       const w = vcf(b, p, L.vcf, d0);
       if (w) return w;
       const threat = (pl) => vcf(b, pl, L.vcf, d0);
@@ -226,13 +282,13 @@
       }
     }
     let best = cands[0];
-    const dl = { t: Date.now() + L.ms, out: false };
-    for (let depth = 2; depth <= L.depth; depth++) {
+    const dl = { t: Date.now() + MS, out: false };
+    for (let depth = 2; depth <= D; depth++) {
       let iterBest = null, bs = -Infinity, alpha = -Infinity;
       const order = best ? [best, ...cands.filter(m => m !== best)] : cands;
       for (const m of order) {
         b[m.row][m.col] = p;
-        const s = -negamax(b, depth - 1, -Infinity, -alpha, 3 - p, L.K, dl);
+        const s = -negamax(b, depth - 1, -Infinity, -alpha, 3 - p, KK, dl);
         b[m.row][m.col] = 0;
         if (dl.out) break;
         if (s > bs) { bs = s; iterBest = m; }
@@ -245,7 +301,7 @@
     return best;
   }
 
-  const api = { bestMove, evaluate, forbidden };
+  const api = { bestMove, evaluate, forbidden, posKey, learn, setMemory, getMemory, predict };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GomokuAI = api;
 })(typeof window !== 'undefined' ? window : globalThis);

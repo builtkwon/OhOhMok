@@ -1,6 +1,6 @@
 // Run: node tests/ai.test.js
 const assert = require('assert');
-const { bestMove, forbidden } = require('../ai.js');
+const { bestMove, forbidden, posKey, learn, setMemory, getMemory, predict } = require('../ai.js');
 const N = 15;
 const empty = () => Array.from({ length: N }, () => Array(N).fill(0));
 const put = (b, p, cells) => cells.forEach(([r, c]) => { b[r][c] = p; });
@@ -93,4 +93,30 @@ for (const color of [1, 2, 1, 2]) { const r = play(color, 'hard'); wins += r.win
 console.log(`hard vs greedy: ${wins}/4 wins, slowest move ${worst}ms`);
 assert(wins >= 3, 'hard should beat greedy');
 assert(worst < 3500, "move too slow");
+// 5) learning: after a loss the AI stops repeating the same moves; it also steers away from replies the human already won with
+{
+  setMemory(null);
+  const b = empty(); put(b, 1, [[7, 7], [6, 8]]); put(b, 2, [[7, 8]]);
+  const m1 = bestMove(b, 2, 'normal');
+  assert(bestMove(b, 2, 'normal').row === m1.row && bestMove(b, 2, 'normal').col === m1.col, 'AI is deterministic before learning');
+  const key = posKey(b, 2);
+  learn([{ p: 2, row: m1.row, col: m1.col, key }], 2, 1); // human won
+  const m2 = bestMove(b, 2, 'normal');
+  assert(!(m2.row === m1.row && m2.col === m1.col), 'AI must not repeat a move it lost with');
+  assert(getMemory().streak === 1, 'streak counts consecutive human wins');
+  learn([], 2, 2); assert(getMemory().streak === 0, 'AI win resets the streak');
+  // human reply memory: a reply that won before is predicted and the move leading to it is avoided
+  setMemory(null);
+  const c = empty(); put(c, 1, [[7, 7]]); put(c, 2, [[6, 6]]);
+  const n1 = bestMove(c, 1, 'normal'); // here the human is "2"; ai plays 1
+  c[n1.row][n1.col] = 1;
+  const hk = posKey(c, 2);
+  learn([{ p: 2, row: 3, col: 3, key: hk }], 1, 2); // human (2) won through (3,3) from that position
+  c[n1.row][n1.col] = 0;
+  assert(predict((c[n1.row][n1.col] = 1, c), 2).row === 3, 'predicts the remembered reply');
+  c[n1.row][n1.col] = 0;
+  const n2 = bestMove(c, 1, 'normal');
+  assert(!(n2.row === n1.row && n2.col === n1.col), 'AI avoids moves that lead to a known human win');
+  setMemory(null);
+}
 console.log('ok');
