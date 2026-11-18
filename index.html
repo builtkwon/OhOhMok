@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZESTMOK - 오목</title>
-<meta name="description" content="친구와 방 코드로 온라인 대전, 또는 AI와 겨루는 오목 게임">
+<meta name="description" content="ZEST와 함께하는 오목 대전">
 <meta name="theme-color" content="#2b1f0e">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://0.peerjs.com wss://0.peerjs.com; object-src 'none'; base-uri 'self'; form-action 'none'">
 <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
 <meta property="og:type" content="website">
 <meta property="og:title" content="ZESTMOK - 오목">
-<meta property="og:description" content="친구와 방 코드로 온라인 대전, 또는 AI와 겨루는 오목 게임">
+<meta property="og:description" content="ZEST와 함께하는 오목 대전">
 <meta property="og:url" content="https://builtkwon.github.io/ZESTMOK/">
 <meta property="og:image" content="https://builtkwon.github.io/ZESTMOK/img/og.png">
 <meta property="og:image:width" content="1200">
@@ -1255,7 +1255,7 @@ function onReceiveData(data) {
   switch (data.type) {
     case 'ping': break;
     case 'move':
-      if (isValidMove(data, board, currentPlayer, 3 - myOnlinePlayer, gameOver)) {
+      if (isValidMove(data, board, currentPlayer, 3 - myOnlinePlayer, gameOver) && !isForbidden(data.row, data.col, currentPlayer)) {
         doPlaceStone(data.row, data.col, false);
       } else if (onlineRole === 'host') sendSync();
       else send({type: 'need-sync'});
@@ -1573,6 +1573,7 @@ function tmHostStart() {
 function tmHostMove(id, d) {
   if (!TM.started || !TeamLogic.validMove(d, board, gameOver, TM.turn, TM.players, id)) return;
   const team = TM.turn.team;
+  if (isForbidden(d.row, d.col, team)) return;
   board[d.row][d.col] = team; lastPlaced = {row: d.row, col: d.col};
   const w = checkWin(d.row, d.col);
   if (w) { winningCells = w; gameOver = true; scores[team]++; TM.result = {winner: team, reason: 'five'}; }
@@ -1919,8 +1920,19 @@ function refreshStones() {
 }
 
 // ─── PLACING STONES ───────────────────────────────────────────
+// Korean rule: black may not play 3-3 or 6+ (4-4 ok). Applies to every mode; white unrestricted.
+function isForbidden(row, col, player) {
+  return player === 1 && board[row][col] === 0 && GomokuAI.forbidden(board, row, col);
+}
+function flashForbidden() {
+  const t = document.getElementById('turn-text'), old = t.textContent;
+  t.textContent = '금수 (쌍삼 · 장목) 자리입니다';
+  announce('금수 자리입니다');
+  setTimeout(() => { if (t.textContent === '금수 (쌍삼 · 장목) 자리입니다') t.textContent = old; }, 1200);
+}
 function handleClick(row, col) {
   if (gameOver || aiThinking) return;
+  if (myTurn() && isForbidden(row, col, gameMode === 'team' ? TM.turn.team : currentPlayer)) return flashForbidden();
   if (gameMode === 'ai') {
     if (currentPlayer !== humanPlayer) return;
     doPlaceStone(row, col, true);
