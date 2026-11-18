@@ -12,7 +12,7 @@
     easy:   { depth: 1, K: 5,  ms: 0,    vcf: 0 },
     normal: { depth: 3, K: 8,  ms: 600,  vcf: 0 },
     hard:   { depth: 8, K: 12, ms: 2500, vcf: 10 },
-    boss:   { depth: 10, K: 16, ms: 4500, vcf: 14 }, // 원준: deeper/wider than hard
+    boss:   { depth: 12, K: 18, ms: 3500, vcf: 16 }, // 원준: deeper/wider than hard
   };
 
   const inside = (r, c) => r >= 0 && r < N && c >= 0 && c < N;
@@ -220,24 +220,35 @@
     return list.slice(0, K);
   }
 
-  function negamax(b, depth, alpha, beta, p, K, dl) {
+  // transposition table (per bestMove call): same position reached by a different move order is searched once
+  const Z = [0, 1, 2].map(() => Array.from({ length: N * N }, () => (Math.random() * 4294967296) | 0));
+  let TT = new Map();
+  function negamax(b, depth, alpha, beta, p, K, dl, h) {
     if (Date.now() > dl.t) { dl.out = true; return 0; }
     if (depth === 0) return evaluate(b, p);
+    const a0 = alpha, key = h ^ (p === 2 ? 0x5bd1e995 : 0), e = TT.get(key);
+    if (e && e.d >= depth) {
+      if (e.f === 0) return e.v;
+      if (e.f === 1 && e.v > alpha) alpha = e.v; else if (e.f === 2 && e.v < beta) beta = e.v;
+      if (alpha >= beta) return e.v;
+    }
     const cands = candidates(b, p, K);
     if (!cands.length) return 0;
     if (cands[0].win) return FIVE + depth;
     let best = -Infinity;
     for (const m of cands) {
       b[m.row][m.col] = p;
-      const s = -negamax(b, depth - 1, -beta, -alpha, 3 - p, K, dl);
+      const s = -negamax(b, depth - 1, -beta, -alpha, 3 - p, K, dl, h ^ Z[p][m.row * N + m.col]);
       b[m.row][m.col] = 0;
       if (dl.out) return 0;
       if (s > best) best = s;
       if (best > alpha) alpha = best;
       if (alpha >= beta) break;
     }
+    TT.set(key, { d: depth, v: best, f: best <= a0 ? 2 : best >= beta ? 1 : 0 }); // 2 = upper bound, 1 = lower bound, 0 = exact
     return best;
   }
+  const hashOf = (b) => { let h = 0; for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (b[r][c]) h ^= Z[b[r][c]][r * N + c]; return h; };
 
   function bestMove(b, p, level) {
     const L = LEVELS[level] || LEVELS.normal;
@@ -252,7 +263,7 @@
     }
     // adaptive: the longer the human's win streak, the deeper/wider the search (normal and up)
     const boost = level === 'easy' ? 0 : Math.min(mem.streak, 3);
-    const D = L.depth + (boost > 0 ? Math.min(boost, 2) : 0), KK = L.K + boost * 2, MS = L.ms * (1 + 0.25 * boost);
+    const D = L.depth + (boost > 0 ? Math.min(boost, 2) : 0), KK = L.K + boost * 2, MS = L.ms;
     let cands = candidates(b, p, KK);
     if (level !== 'easy' && cands.length && !cands[0].win && !cands[0].block) cands = unlearned(b, p, cands);
     if (!cands.length) { // every nearby cell is forbidden: any legal empty cell
@@ -282,13 +293,14 @@
       }
     }
     let best = cands[0];
-    const dl = { t: Date.now() + MS, out: false };
+    const dl = { t: Date.now() + MS, out: false }, h0 = hashOf(b);
+    TT = new Map();
     for (let depth = 2; depth <= D; depth++) {
       let iterBest = null, bs = -Infinity, alpha = -Infinity;
       const order = best ? [best, ...cands.filter(m => m !== best)] : cands;
       for (const m of order) {
         b[m.row][m.col] = p;
-        const s = -negamax(b, depth - 1, -Infinity, -alpha, 3 - p, KK, dl);
+        const s = -negamax(b, depth - 1, -Infinity, -alpha, 3 - p, KK, dl, h0 ^ Z[p][m.row * N + m.col]);
         b[m.row][m.col] = 0;
         if (dl.out) break;
         if (s > bs) { bs = s; iterBest = m; }
