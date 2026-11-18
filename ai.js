@@ -1,7 +1,7 @@
 // Gomoku AI. board[r][c]: 0 empty, 1 black, 2 white. Win = 5+ in a row.
 // Korean common rules for the AI's own play: when the AI is black it never plays a 3-3 (쌍삼) or a 6+ (장목);
 // white is unrestricted. 4-4 is allowed. ponytail: a "three" whose completing point is itself forbidden still counts as a three.
-// GomokuAI.bestMove(board, player, level) -> {row, col}; level: 'easy' | 'normal' | 'hard'.
+// GomokuAI.bestMove(board, player, level) -> {row, col}; level: 'easy' | 'normal' | 'hard' | 'boss'.
 (function (root) {
   const N = 15;
   const FIVE = 1e7;
@@ -12,6 +12,7 @@
     easy:   { depth: 1, K: 5,  ms: 0,    vcf: 0 },
     normal: { depth: 3, K: 8,  ms: 600,  vcf: 0 },
     hard:   { depth: 8, K: 12, ms: 2500, vcf: 10 },
+    boss:   { depth: 10, K: 16, ms: 4500, vcf: 14 }, // 원준: deeper/wider than hard
   };
 
   const inside = (r, c) => r >= 0 && r < N && c >= 0 && c < N;

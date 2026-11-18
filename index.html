@@ -306,6 +306,10 @@
     100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
   }
 
+  /* boss (원준): the AI's stone color shows the boss's face */
+  body.boss-1 .stone.black-stone, body.boss-1 .modal-stone.black-stone, body.boss-1 .player-stone.black { background-image: url(img/wonjun-black.jpg) !important; background-size: cover !important; background-position: center !important; }
+  body.boss-2 .stone.white-stone, body.boss-2 .modal-stone.white-stone, body.boss-2 .player-stone.white { background-image: url(img/wonjun-white.jpg) !important; background-size: cover !important; background-position: center !important; }
+
   .stone.black-stone {
     background-image: url(img/stone-black.jpg);
     background-size: cover;
@@ -935,6 +939,7 @@
       <button type="button" class="level-chip" role="radio" data-level="easy" onclick="setLevel('easy')">쉬움</button>
       <button type="button" class="level-chip" role="radio" data-level="normal" onclick="setLevel('normal')">보통</button>
       <button type="button" class="level-chip" role="radio" data-level="hard" onclick="setLevel('hard')">어려움</button>
+      <button type="button" class="level-chip" role="radio" data-level="boss" onclick="setLevel('boss')">원준</button>
     </div>
     <div class="select-sub">ZEST로 플레이할 돌을 선택하세요</div>
     <div class="stone-choices">
@@ -1079,10 +1084,13 @@ document.addEventListener('keydown', (e) => {
 });
 
 // AI difficulty
-const LEVEL_NAMES = {easy: '쉬움', normal: '보통', hard: '어려움'};
+const LEVEL_NAMES = {easy: '쉬움', normal: '보통', hard: '어려움', boss: '원준'};
 let aiLevel = 'normal';
 try { const v = localStorage.getItem('zestmok-level'); if (LEVEL_NAMES[v]) aiLevel = v; } catch (e) {}
 function levelName() { return LEVEL_NAMES[aiLevel]; }
+const aiName = () => aiLevel === 'boss' ? '원준' : 'ZAIST';
+// boss mode: the AI's stones wear the boss's face (class = which color it plays)
+function applyBoss() { document.body.classList.toggle('boss-1', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 1); document.body.classList.toggle('boss-2', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 2); }
 function setLevel(l) {
   aiLevel = l;
   try { localStorage.setItem('zestmok-level', l); } catch (e) {}
@@ -1843,15 +1851,16 @@ function selectColor(color) {
 }
 
 function updateBadges() {
+  applyBoss();
   const nBlack = document.getElementById('name-black');
   const nWhite = document.getElementById('name-white');
   const lBlack = document.getElementById('label-black');
   const lWhite = document.getElementById('label-white');
   if (humanPlayer === 1) {
     nBlack.innerHTML = 'ZEST <span class="player-badge badge-human" id="badge-black">나</span>';
-    nWhite.innerHTML = 'ZAIST <span class="player-badge badge-ai" id="badge-white">AI · '+levelName()+'</span>';
+    nWhite.innerHTML = aiName()+' <span class="player-badge badge-ai" id="badge-white">AI · '+levelName()+'</span>';
   } else {
-    nBlack.innerHTML = 'ZAIST <span class="player-badge badge-ai" id="badge-black">AI · '+levelName()+'</span>';
+    nBlack.innerHTML = aiName()+' <span class="player-badge badge-ai" id="badge-black">AI · '+levelName()+'</span>';
     nWhite.innerHTML = 'ZEST <span class="player-badge badge-human" id="badge-white">나</span>';
   }
   lBlack.textContent = '흑돌 · 선공';
@@ -2008,6 +2017,7 @@ function checkWin(row,col){
 
 // ─── UI UPDATES ───────────────────────────────────────────────
 function updateTurn(){
+  applyBoss();
   const dot=document.getElementById('turn-dot');
   const text=document.getElementById('turn-text');
   dot.style.background=currentPlayer===1?'#222':'#e8e0d0';
@@ -2015,7 +2025,7 @@ function updateTurn(){
   dot.style.boxShadow=currentPlayer===1?'0 0 6px rgba(0,0,0,0.8)':'0 0 6px rgba(255,255,255,0.6)';
   if(gameMode==='ai'){
     const isAiTurn=currentPlayer===aiPlayer;
-    const name=currentPlayer===humanPlayer?'ZEST':'ZAIST';
+    const name=currentPlayer===humanPlayer?'ZEST':aiName();
     text.textContent=isAiTurn?`${name} (AI) 차례`:`${name} 차례`;
   } else if(gameMode==='team'){
     text.textContent=tmTurnText();
@@ -2045,19 +2055,25 @@ function showWinOverlay(player){
   const winner=document.getElementById('modal-winner');
   const sub=document.getElementById('modal-sub');
   stone.className=`modal-stone ${player===1?'black-stone':'white-stone'}`;
-  stone.style.background=''; stone.style.boxShadow='';
+  stone.style.background=''; stone.style.boxShadow=''; stone.style.width=''; stone.style.height='';
   let isHuman;
   if(gameMode==='ai') isHuman=player===humanPlayer;
   else isHuman=player===myOnlinePlayer;
-  winner.textContent=isHuman?'ZEST 승리! 🎉':'ZAIST 승리!';
+  winner.textContent=isHuman?'ZEST 승리! 🎉':(gameMode==='ai'?aiName():'ZAIST')+' 승리!';
   sub.textContent=isHuman?'당신이 이겼습니다!':(gameMode==='ai'?'🤖 AI가 이겼습니다':'상대방이 이겼습니다');
   resultTitle('승리');
+  if(gameMode==='ai'&&aiLevel==='boss'&&!isHuman){ // lost to the boss: his portrait + "패배"
+    stone.className='modal-stone';
+    stone.style.cssText='width:140px;height:140px;background:url(img/wonjun-win.jpg) center/cover;box-shadow:0 4px 20px rgba(0,0,0,0.8),0 0 30px rgba(255,220,50,0.4);';
+    winner.textContent='패배';
+    sub.textContent='원준의 지능을 넘지 못했습니다';
+  }
   showOverlay('overlay');
 }
 
 function showDrawOverlay(){
   const overlay=document.getElementById('overlay');
-  document.getElementById('modal-stone').style.background='linear-gradient(135deg,#222 50%,#ccc 50%)';
+  document.getElementById('modal-stone').style.cssText='background:linear-gradient(135deg,#222 50%,#ccc 50%)';
   document.getElementById('modal-stone').style.boxShadow='0 4px 20px rgba(0,0,0,0.5)';
   document.getElementById('modal-winner').textContent='무승부!';
   document.getElementById('modal-sub').textContent='보드가 가득 찼습니다';
@@ -2072,7 +2088,7 @@ function rematch(){ if(gameMode==='team') return tmRematch(); if(gameMode==='onl
 function showEndOverlay(title,sub){
   const stone=document.getElementById('modal-stone');
   stone.className='modal-stone';
-  stone.style.background='linear-gradient(135deg,#222 50%,#ccc 50%)';
+  stone.style.cssText='background:linear-gradient(135deg,#222 50%,#ccc 50%)';
   document.getElementById('modal-winner').textContent=title;
   document.getElementById('modal-sub').textContent=sub;
   resultTitle('승리');
