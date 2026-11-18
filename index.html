@@ -939,7 +939,7 @@
       <button type="button" class="level-chip" role="radio" data-level="easy" onclick="setLevel('easy')">쉬움</button>
       <button type="button" class="level-chip" role="radio" data-level="normal" onclick="setLevel('normal')">보통</button>
       <button type="button" class="level-chip" role="radio" data-level="hard" onclick="setLevel('hard')">어려움</button>
-      <button type="button" class="level-chip" role="radio" data-level="boss" onclick="setLevel('boss')">원준</button>
+      <button type="button" class="level-chip" role="radio" data-level="boss" onclick="setLevel('boss')">æ 원준</button>
     </div>
     <div class="select-sub">ZEST로 플레이할 돌을 선택하세요</div>
     <div class="stone-choices">
@@ -990,6 +990,7 @@ let lastPlaced = null;
 let winningCells = [];
 let humanPlayer = 1;
 let aiPlayer = 2;
+let aiHist = []; // moves of the current AI game, fed to GomokuAI.learn when it ends
 let aiThinking = false;
 
 // Game mode: 'ai' | 'online'
@@ -1084,11 +1085,11 @@ document.addEventListener('keydown', (e) => {
 });
 
 // AI difficulty
-const LEVEL_NAMES = {easy: '쉬움', normal: '보통', hard: '어려움', boss: '원준'};
+const LEVEL_NAMES = {easy: '쉬움', normal: '보통', hard: '어려움', boss: 'æ 원준'};
 let aiLevel = 'normal';
 try { const v = localStorage.getItem('zestmok-level'); if (LEVEL_NAMES[v]) aiLevel = v; } catch (e) {}
 function levelName() { return LEVEL_NAMES[aiLevel]; }
-const aiName = () => aiLevel === 'boss' ? '원준' : 'ZAIST';
+const aiName = () => aiLevel === 'boss' ? 'æ 원준' : 'ZAIST';
 // boss mode: the AI's stones wear the boss's face (class = which color it plays)
 function applyBoss() { document.body.classList.toggle('boss-1', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 1); document.body.classList.toggle('boss-2', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 2); }
 function setLevel(l) {
@@ -1839,6 +1840,7 @@ function selectColor(color) {
   humanPlayer = color;
   aiPlayer = color === 1 ? 2 : 1;
   hideOverlay('select-overlay');
+  aiMemLoad();
   updateBadges();
   gameOver = false;
   aiThinking = false;
@@ -1869,6 +1871,7 @@ function updateBadges() {
 
 // ─── BOARD ────────────────────────────────────────────────────
 function initBoard() {
+  aiHist = [];
   board = Array.from({length: BOARD_SIZE}, () => Array(BOARD_SIZE).fill(0));
   lastPlaced = null; winningCells = [];
   stonesLayer.innerHTML = '';
@@ -1960,8 +1963,22 @@ function handleClick(row, col) {
 const COL_NAMES = 'ABCDEFGHJKLMNOP';
 function coordName(r, c) { return COL_NAMES[c] + (BOARD_SIZE - r); }
 
+// per-browser AI learning (ai.js keeps the model; we persist it per level and feed it finished games)
+const memKey = () => 'zestmok-mem-' + aiLevel;
+function aiMemLoad() {
+  let m = null;
+  try { m = JSON.parse(localStorage.getItem(memKey())); } catch (e) {}
+  GomokuAI.setMemory(m);
+}
+function aiLearn(winner) {
+  if (gameMode !== 'ai' || aiLevel === 'easy' || !aiHist.length) return;
+  GomokuAI.learn(aiHist, aiPlayer, winner);
+  try { localStorage.setItem(memKey(), JSON.stringify(GomokuAI.getMemory())); } catch (e) {} // full/blocked storage: learn for this tab only
+  aiHist = [];
+}
 function doPlaceStone(row, col, triggerAi) {
   if (gameOver || board[row][col] !== 0) return;
+  if (gameMode === 'ai') aiHist.push({p: currentPlayer, row, col, key: GomokuAI.posKey(board, currentPlayer)});
   board[row][col] = currentPlayer;
   document.querySelectorAll('.stone.last-placed').forEach(e=>e.classList.remove('last-placed'));
   lastPlaced = {row, col};
@@ -1973,12 +1990,14 @@ function doPlaceStone(row, col, triggerAi) {
     gameOver = true;
     scores[currentPlayer]++;
     updateScores();
+    aiLearn(currentPlayer);
     setTimeout(refreshStones, 50);
     setTimeout(()=>showWinOverlay(currentPlayer), 500);
     return;
   }
   if (board.flat().every(v=>v!==0)) {
     gameOver = true;
+    aiLearn(0);
     setTimeout(()=>showDrawOverlay(), 300);
     return;
   }
@@ -2066,7 +2085,7 @@ function showWinOverlay(player){
     stone.className='modal-stone';
     stone.style.cssText='width:140px;height:140px;background:url(img/wonjun-win.jpg) center/cover;box-shadow:0 4px 20px rgba(0,0,0,0.8),0 0 30px rgba(255,220,50,0.4);';
     winner.textContent='패배';
-    sub.textContent='원준의 지능을 넘지 못했습니다';
+    sub.textContent='æ 원준의 지능을 넘지 못했습니다';
   }
   showOverlay('overlay');
 }
