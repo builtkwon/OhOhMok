@@ -12,7 +12,7 @@
     easy:   { depth: 1, K: 5,  ms: 0,    vcf: 0 },
     normal: { depth: 3, K: 8,  ms: 600,  vcf: 0 },
     hard:   { depth: 8, K: 12, ms: 2500, vcf: 10 },
-    boss:   { depth: 12, K: 18, ms: 3500, vcf: 16 }, // 원준: deeper/wider than hard
+    boss:   { depth: 12, K: 18, ms: 3500, vcf: 16, def: true }, // 원준: deeper/wider than hard + explicit defense (open fours, random fork kind)
   };
 
   const inside = (r, c) => r >= 0 && r < N && c >= 0 && c < N;
@@ -142,6 +142,69 @@
     }
     return null;
   }
+  // ── defense ───────────────────────────────────────────────────────────────
+  // a 5-window through (r,c) with 4 of p's stones and no enemy (a four, open or closed) in direction (dr,dc)
+  function hasFour(b, r, c, dr, dc, p) {
+    for (let k = 0; k < 5; k++) {
+      const sr = r - dr * k, sc = c - dc * k;
+      if (!inside(sr, sc) || !inside(sr + dr * 4, sc + dc * 4)) continue;
+      let own = 0, opp = 0;
+      for (let i = 0; i < 5; i++) { const v = b[sr + dr * i][sc + dc * i]; if (v === p) own++; else if (v) opp++; }
+      if (own === 4 && !opp) return true;
+    }
+    return false;
+  }
+  // empty cells where q would make 3-3 (kind 0), 4-4 (1) or 6+ (2). Black may not play 3-3 / 6+, so for black only 4-4 counts.
+  function forkCells(b, q, kind) {
+    const out = [];
+    if (q === 1 && kind !== 1) return out;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      if (b[r][c]) continue;
+      b[r][c] = q;
+      let n = 0;
+      for (const [dr, dc] of DIRS) if (kind === 0 ? openThree(b, r, c, dr, dc, q) : kind === 1 ? hasFour(b, r, c, dr, dc, q) : run(b, r, c, dr, dc, q).n > 5) n++;
+      b[r][c] = 0;
+      if (kind === 2 ? n >= 1 : n >= 2) out.push([r, c]);
+    }
+    return out;
+  }
+  // empty cells where p would make an open four (p already has an open three) - wins unless the other side has fours
+  function openFourCells(b, p) {
+    const out = [];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      if (b[r][c]) continue;
+      b[r][c] = p;
+      const ok = DIRS.some(([dr, dc]) => {
+        const x = run(b, r, c, dr, dc, p);
+        if (x.n !== 4) return false;
+        const lr = r + dr * (x.lo - 1), lc = c + dc * (x.lo - 1), hr = r + dr * (x.hi + 1), hc = c + dc * (x.hi + 1);
+        return inside(lr, lc) && !b[lr][lc] && inside(hr, hc) && !b[hr][hc];
+      });
+      b[r][c] = 0;
+      if (ok && !(p === 1 && forbidden(b, r, c))) out.push([r, c]);
+    }
+    return out;
+  }
+  // Defense plan for p vs q, thought through every move:
+  //  attack first - if p can make an open four now, no defensive bonus (the search just takes it);
+  //  else bonus for occupying q's open-four cells (strong) and the cells of ONE fork kind (3-3 / 4-4 / 6+; all three would be too strong).
+  //  The kind is re-rolled at random every FOCUS_TRIPS round trips (one trip = AI move + human reply) and held in between.
+  const OPEN4_DEF = 4000, FORK_DEF = 2500, FOCUS_TRIPS = 3;
+  const focus = { round: -1, kind: 0 };
+  function focusKind(b) {
+    const round = Math.floor(b.flat().filter(Boolean).length / (2 * FOCUS_TRIPS));
+    if (round !== focus.round) { focus.round = round; focus.kind = Math.floor(Math.random() * 3); }
+    return focus.kind;
+  }
+  function defense(b, p, q) {
+    const bonus = new Map();
+    if (openFourCells(b, p).length) return bonus;
+    const add = (cells, v) => cells.forEach(([r, c]) => { if (!(koreanBlack && p === 1 && forbidden(b, r, c))) bonus.set(r * N + c, Math.max(bonus.get(r * N + c) || 0, v)); });
+    add(openFourCells(b, q), OPEN4_DEF);
+    add(forkCells(b, q, focusKind(b)), FORK_DEF);
+    return bonus;
+  }
+
   // ── per-browser learning ──────────────────────────────────────────────────
   // mem.avoid[key] = AI moves (at that position) that preceded a human win; mem.hum[key]["r,c"] = [games, wins] of the human's
   // replies at that position (key = position with the human to move); mem.streak = consecutive human wins.
@@ -265,6 +328,7 @@
     const boost = level === 'easy' ? 0 : Math.min(mem.streak, 3);
     const D = L.depth + (boost > 0 ? Math.min(boost, 2) : 0), KK = L.K + boost * 2, MS = L.ms;
     let cands = candidates(b, p, KK);
+    let bonus = new Map(), lost = false;
     if (level !== 'easy' && cands.length && !cands[0].win && !cands[0].block) cands = unlearned(b, p, cands);
     if (!cands.length) { // every nearby cell is forbidden: any legal empty cell
       for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (!b[r][c] && !(koreanBlack && p === 1 && forbidden(b, r, c))) return { row: r, col: c };
@@ -277,12 +341,18 @@
       const top = cands.slice(0, 4);
       return Math.random() < 0.5 ? top[0] : top[Math.floor(Math.random() * top.length)];
     }
+    if (L.def) { // make sure defensive cells are searched even if they rank low
+      bonus = defense(b, p, 3 - p);
+      let extra = 0;
+      for (const k of bonus.keys()) if (extra < 4 && !cands.some(m => m.row * N + m.col === k)) { cands.push({ row: (k / N) | 0, col: k % N, pri: 0 }); extra++; }
+    }
     if (L.vcf) { // forced win for me, or stop the opponent's forced win
       const q = 3 - p, d0 = { t: Date.now() + MS * 0.5, out: false };
       const w = vcf(b, p, L.vcf, d0);
       if (w) return w;
       const threat = (pl) => vcf(b, pl, L.vcf, d0);
       if (threat(q)) {
+        lost = true;
         for (const m of candidates(b, p, 30)) {
           if (Date.now() > d0.t) break;
           b[m.row][m.col] = p;
@@ -290,30 +360,34 @@
           b[m.row][m.col] = 0;
           if (safe && Date.now() <= d0.t) return m;
         }
+        if (Date.now() > d0.t) lost = false; // ran out of time: not sure it is lost
       }
     }
-    let best = cands[0];
+    let best = cands[0], rawBest = 0;
     const dl = { t: Date.now() + MS, out: false }, h0 = hashOf(b);
     TT = new Map();
     for (let depth = 2; depth <= D; depth++) {
-      let iterBest = null, bs = -Infinity, alpha = -Infinity;
+      let iterBest = null, bs = -Infinity, alpha = -Infinity, iterRaw = 0;
       const order = best ? [best, ...cands.filter(m => m !== best)] : cands;
       for (const m of order) {
         b[m.row][m.col] = p;
-        const s = -negamax(b, depth - 1, -Infinity, -alpha, 3 - p, KK, dl, h0 ^ Z[p][m.row * N + m.col]);
+        const bn = bonus.get(m.row * N + m.col) || 0; // defensive bonus: searched score + bonus
+        const raw = -negamax(b, depth - 1, -Infinity, bn - alpha, 3 - p, KK, dl, h0 ^ Z[p][m.row * N + m.col]);
         b[m.row][m.col] = 0;
         if (dl.out) break;
-        if (s > bs) { bs = s; iterBest = m; }
+        const s = raw + bn;
+        if (s > bs) { bs = s; iterBest = m; iterRaw = raw; }
         if (bs > alpha) alpha = bs;
       }
       if (dl.out) break; // keep the last fully searched depth
-      if (iterBest) best = iterBest;
+      if (iterBest) { best = iterBest; rawBest = iterRaw; }
       if (bs >= FIVE) break; // forced win found
     }
-    return best;
+    // doomed: the opponent has a forced win (four-chain or searched) - the UI uses this for the boss's table flip
+    return lost || rawBest <= -FIVE ? { row: best.row, col: best.col, doomed: true } : best;
   }
 
-  const api = { bestMove, evaluate, forbidden, posKey, learn, setMemory, getMemory, predict };
+  const api = { bestMove, evaluate, forbidden, forkCells, openFourCells, focus, FOCUS_TRIPS, posKey, learn, setMemory, getMemory, predict };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GomokuAI = api;
 })(typeof window !== 'undefined' ? window : globalThis);
