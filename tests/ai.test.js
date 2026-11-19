@@ -137,7 +137,17 @@ assert(worst < 3500, "move too slow");
   const r1 = bestMove(f, 1, 'boss');
   assert(r1.row === 7 && r1.col === 7, `boss should take the white 3-3 point, got ${JSON.stringify(r1)}`);
   assert(focus.kind === 0, 'kind held within the interval');
-  const k = new Set(); for (let i = 0; i < 40; i++) { focus.round = -1; bestMove(f, 1, 'boss'); k.add(focus.kind); }
+  const { focusKind } = require('../ai.js'), k = new Set(); for (let i = 0; i < 60; i++) { focus.round = -1; k.add(focusKind(f)); }
   assert(k.size === 3, 're-roll covers all three kinds');
+}
+// VCT: finds a winning open-three sequence, not just fours
+{
+  const { vct, bestMove: bm } = require('../ai.js');
+  bm(empty(), 2, 'easy'); // sets rule flags for p=2
+  const f = empty(); put(f, 2, [[7, 5], [7, 6], [5, 7], [6, 7]]); put(f, 1, [[0, 0], [0, 2], [14, 14], [14, 12]]);
+  const w = vct(f, 2, 4, { t: Date.now() + 2000 });
+  assert(w, 'vct should find a forced win (3-3 setup)');
+  const sparse = empty(); put(sparse, 2, [[7, 7]]); put(sparse, 1, [[7, 8]]);
+  assert(!vct(sparse, 2, 4, { t: Date.now() + 2000 }), 'no forced win from a lone stone');
 }
 console.log('ok');
