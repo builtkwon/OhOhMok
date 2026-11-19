@@ -2041,7 +2041,7 @@ async function flipTable() {
   say.remove();
   if (board !== B || gameMode !== 'ai') { wrap.getAnimations().forEach(a => a.cancel()); return; } // player left mid-flip
   aiLearn(humanPlayer); // flipped game = AI loss, for learning
-  [humanPlayer, aiPlayer] = [aiPlayer, humanPlayer]; // AI always opens the restarted game (black)
+  aiPlayer = 1; humanPlayer = 2; // AI always opens the restarted game (black)
   rage = true; updateBadges(); // AI stones = angry photo for this game only
   gameOver = false; currentPlayer = 1;
   initBoard(); updateTurn();
