@@ -119,4 +119,25 @@ assert(worst < 3500, "move too slow");
   assert(!(n2.row === n1.row && n2.col === n1.col), 'AI avoids moves that lead to a known human win');
   setMemory(null);
 }
+// boss defense: fork cells, doomed flag, boss occupies a white 3-3 point
+{
+  const { forkCells, openFourCells, focus, FOCUS_TRIPS } = require('../ai.js');
+  const f = empty(); put(f, 2, [[7, 5], [7, 6], [5, 7], [6, 7]]); put(f, 1, [[0, 0], [0, 2], [14, 14], [14, 12]]);
+  assert(forkCells(f, 2, 0).some(([r, c]) => r === 7 && c === 7), 'white 3-3 point found');
+  assert(forkCells(f, 1, 0).length === 0, 'black has no 3-3 point (forbidden)');
+  const g = empty(); put(g, 2, [[7, 4], [7, 5], [7, 6], [4, 7], [5, 7], [6, 7]]);
+  assert(forkCells(g, 2, 1).some(([r, c]) => r === 7 && c === 7), 'white 4-4 point found');
+  assert(openFourCells(empty().map((r, i) => (i === 7 ? r.map((_, c) => (c >= 6 && c <= 8 ? 2 : 0)) : r)), 2).length === 2, 'open three -> 2 open-four cells');
+  // white open four on board, black cannot stop it: boss flags doomed
+  const d = empty(); put(d, 2, [[7, 5], [7, 6], [7, 7], [7, 8]]); put(d, 1, [[0, 0], [0, 2], [14, 14]]);
+  const m = bestMove(d, 1, 'boss');
+  assert(m.doomed, 'open four against the boss = doomed');
+  // focus kind is held for FOCUS_TRIPS round trips, then re-rolled: pin it to 3-3, boss takes the point
+  focus.round = Math.floor(8 / (2 * FOCUS_TRIPS)); focus.kind = 0;
+  const r1 = bestMove(f, 1, 'boss');
+  assert(r1.row === 7 && r1.col === 7, `boss should take the white 3-3 point, got ${JSON.stringify(r1)}`);
+  assert(focus.kind === 0, 'kind held within the interval');
+  const k = new Set(); for (let i = 0; i < 40; i++) { focus.round = -1; bestMove(f, 1, 'boss'); k.add(focus.kind); }
+  assert(k.size === 3, 're-roll covers all three kinds');
+}
 console.log('ok');

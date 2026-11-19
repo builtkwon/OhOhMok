@@ -309,6 +309,9 @@
   }
 
   /* boss (원준): the AI's stone color shows the boss's face */
+  /* boss rage (after the table flip, that one game only): the AI's stones wear the angry photo */
+  body.boss-1.rage .stone.black-stone, body.boss-1.rage .modal-stone.black-stone, body.boss-1.rage .player-stone.black,
+  body.boss-2.rage .stone.white-stone, body.boss-2.rage .modal-stone.white-stone, body.boss-2.rage .player-stone.white { background-image: url(img/wonjun-rage-stone.jpg) !important; }
   body.boss-1 .stone.black-stone, body.boss-1 .modal-stone.black-stone, body.boss-1 .player-stone.black { background-image: url(img/wonjun-black.jpg) !important; background-size: cover !important; background-position: center !important; }
   body.boss-2 .stone.white-stone, body.boss-2 .modal-stone.white-stone, body.boss-2 .player-stone.white { background-image: url(img/wonjun-white.jpg) !important; background-size: cover !important; background-position: center !important; }
 
@@ -1093,7 +1096,8 @@ try { const v = localStorage.getItem('zestmok-level'); if (LEVEL_NAMES[v]) aiLev
 function levelName() { return LEVEL_NAMES[aiLevel]; }
 const aiName = () => aiLevel === 'boss' ? 'æ 원준' : 'ZAIST';
 // boss mode: the AI's stones wear the boss's face (class = which color it plays)
-function applyBoss() { document.body.classList.toggle('boss-1', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 1); document.body.classList.toggle('boss-2', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 2); }
+let rage = false; // set by flipTable, cleared when a new fight starts
+function applyBoss() { document.body.classList.toggle('rage', rage); document.body.classList.toggle('boss-1', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 1); document.body.classList.toggle('boss-2', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 2); }
 function setLevel(l) {
   aiLevel = l;
   try { localStorage.setItem('zestmok-level', l); } catch (e) {}
@@ -1845,7 +1849,7 @@ function selectColor(color) {
   aiMemLoad();
   updateBadges();
   gameOver = false;
-  aiThinking = false;
+  aiThinking = false; flipUsed = rage = false;
   currentPlayer = 1;
   document.getElementById('conn-status').style.display = 'none';
   initBoard();
@@ -2014,8 +2018,37 @@ function doAiMove() {
   setTimeout(()=>{
     const move = GomokuAI.bestMove(board, aiPlayer, aiLevel);
     aiThinking = false; setAiThinking(false);
+    if (move && move.doomed && aiLevel === 'boss' && !flipUsed) return flipTable();
     if (move) doPlaceStone(move.row, move.col, false);
   }, 80);
+}
+
+// boss about to lose: flips the table once per fight (earthquake -> stones fly, board tips over -> board reassembles empty). Score untouched.
+let flipUsed = false;
+async function flipTable() {
+  flipUsed = aiThinking = true;
+  const B = board, wrap = document.querySelector('.board-wrap'), rm = matchMedia('(prefers-reduced-motion: reduce)').matches, rnd = (a) => (Math.random() - 0.5) * 2 * a;
+  const say = document.body.appendChild(document.createElement('div'));
+  say.innerHTML = '<img src="img/wonjun-rage.jpg" alt="" style="display:block;max-width:80vw;max-height:45vh;border-radius:10px;box-shadow:0 0 40px #c0392b;margin:0 auto 10px"><div>상 엎어!! (╯°□°)╯︵ ┻━┻</div>';
+  say.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;pointer-events:none;text-align:center;font:800 clamp(1.4rem,6vw,2.6rem)/1.2 system-ui,sans-serif;color:#fff;text-shadow:0 0 12px #c0392b,0 2px 6px #000;white-space:nowrap';
+  announce('원준이 상을 엎었습니다. 대국이 처음부터 다시 시작됩니다');
+  if (rm) await new Promise(r => setTimeout(r, 1500));
+  else {
+    await wrap.animate(Array.from({length: 18}, () => ({transform: `translate(${rnd(14)}px,${rnd(14)}px) rotate(${rnd(1.5)}deg)`})), {duration: 900}).finished; // earthquake
+    document.querySelectorAll('#stones-layer .stone').forEach(el => el.animate([{transform: 'translate(-50%,-50%)'}, {transform: `translate(-50%,-50%) translate(${rnd(400)}px,${-80 - Math.random() * 260}px) rotate(${rnd(720)}deg)`, opacity: 0}], {duration: 900, easing: 'ease-out', fill: 'forwards'}));
+    await wrap.animate([{transform: 'none', opacity: 1}, {transform: 'perspective(900px) rotateX(80deg) translateY(60px)', opacity: 0}], {duration: 900, easing: 'ease-in', fill: 'forwards'}).finished; // board tips over
+  }
+  say.remove();
+  if (board !== B || gameMode !== 'ai') { wrap.getAnimations().forEach(a => a.cancel()); return; } // player left mid-flip
+  aiLearn(humanPlayer); // flipped game = AI loss, for learning
+  [humanPlayer, aiPlayer] = [aiPlayer, humanPlayer]; // AI always opens the restarted game (black)
+  rage = true; updateBadges(); // AI stones = angry photo for this game only
+  gameOver = false; currentPlayer = 1;
+  initBoard(); updateTurn();
+  wrap.getAnimations().forEach(a => a.cancel());
+  if (!rm) await wrap.animate([{transform: 'perspective(900px) rotateX(-80deg) scale(.8)', opacity: 0}, {transform: 'none', opacity: 1}], {duration: 600, easing: 'cubic-bezier(.34,1.56,.64,1)'}).finished; // reassembles
+  aiThinking = false;
+  setTimeout(doAiMove, 300);
 }
 
 function setAiThinking(on) {
