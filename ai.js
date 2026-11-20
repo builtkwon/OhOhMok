@@ -11,8 +11,8 @@
     // easy: 1-ply, misses blocks. normal: shallow search. hard: deep search + forced-win (four-chain) search for both sides.
     easy:   { depth: 1, K: 5,  ms: 0,    vcf: 0 },
     normal: { depth: 3, K: 8,  ms: 600,  vcf: 0 },
-    hard:   { depth: 8, K: 12, ms: 2500, vcf: 10 },
-    boss:   { depth: 8, K: 12, ms: 2500, vcf: 16, vctD: 6, def: true }, // measured vs hard (self-play): depth 12 / K 18 / 3.5s+ lost to hard, this config holds even // 원준: deeper/wider than hard + explicit defense (open fours, random fork kind)
+    hard:   { depth: 4, K: 8,  ms: 800,  vcf: 4 },   // lowered: self-play showed the old hard (d8, 2.5s) was as strong as the boss
+    boss:   { depth: 10, K: 12, ms: 3500, vcf: 16, vctD: 6, def: true }, // 원준: deepest search + VCF/VCT + explicit defense (self-play: beats the old hard 6-2 / 7-1)
   };
 
   const inside = (r, c) => r >= 0 && r < N && c >= 0 && c < N;
@@ -437,13 +437,15 @@
       const threat = (pl) => vcf(b, pl, L.vcf, d0) || (L.vctD && vct(b, pl, L.vctD, sub()));
       if (threat(q)) {
         lost = true;
+        const safeMoves = []; // moves that stop the forced win; the search then picks the best of them (not just the first)
         for (const m of candidates(b, p, 30)) {
           if (Date.now() > d0.t) break;
           b[m.row][m.col] = p;
           const safe = !threat(q);
           b[m.row][m.col] = 0;
-          if (safe && Date.now() <= d0.t) return m;
+          if (safe && Date.now() <= d0.t) safeMoves.push(m);
         }
+        if (safeMoves.length) { lost = false; cands = safeMoves.slice(0, KK); }
         if (Date.now() > d0.t) lost = false; // ran out of time: not sure it is lost
       }
     }
