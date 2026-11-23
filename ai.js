@@ -11,7 +11,7 @@
     // easy: 1-ply, misses blocks. normal: shallow search. hard: deep search + forced-win (four-chain) search for both sides.
     easy:   { depth: 1, K: 5,  ms: 0,    vcf: 0 },
     normal: { depth: 3, K: 8,  ms: 600,  vcf: 0 },
-    hard:   { depth: 4, K: 8,  ms: 800,  vcf: 4 },   // lowered: self-play showed the old hard (d8, 2.5s) was as strong as the boss
+    hard:   { depth: 4, K: 12, ms: 800,  vcf: 4 },   // measured (tests/duel.js, 80 games): beats normal 64%; boss beats this 77% (31-9 of 40)
     boss:   { depth: 10, K: 12, ms: 3500, vcf: 16, vctD: 6, def: true }, // 원준: deepest search + VCF/VCT + explicit defense (self-play: beats the old hard 6-2 / 7-1)
   };
 
