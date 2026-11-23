@@ -175,6 +175,12 @@
     margin-top: 2px;
   }
 
+  .player-clock { font: 700 0.95rem/1.2 ui-monospace, monospace; color: var(--accent-light); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .player-clock:empty { display: none; }
+  .player-clock.low { color: #ff6b5b; }
+  .mode-card { position: relative; }
+  .new-tag { position: absolute; top: -9px; left: -9px; padding: 2px 7px; border-radius: 8px; background: #e74c3c; color: #fff; font: 800 0.68rem/1.3 system-ui, sans-serif; letter-spacing: 0.04em; transform: rotate(-8deg); box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+
   .divider {
     height: 1px;
     background: linear-gradient(to right, transparent, rgba(212,168,67,0.3), transparent);
@@ -673,15 +679,6 @@
   .room-overlay.show .room-modal { transform: scale(1); }
   .room-title { font-family: var(--font-serif); font-size: 1.4rem; font-weight: 800; color: var(--accent-gold); margin-bottom: 6px; }
   .room-subtitle { font-size: 0.78rem; color: var(--text-secondary); letter-spacing: 0.1em; margin-bottom: 24px; }
-  .room-tabs { display: flex; gap: 0; margin-bottom: 24px; border: 1px solid rgba(212,168,67,0.3); border-radius: 8px; overflow: hidden; }
-  .room-tab {
-    flex: 1; padding: 10px; font-family: var(--font-serif); font-size: 0.9rem; font-weight: 700;
-    background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
-    transition: all 0.2s;
-  }
-  .room-tab.active { background: rgba(212,168,67,0.15); color: var(--accent-gold); }
-  .room-panel { display: none; }
-  .room-panel.active { display: block; }
   .room-code-box {
     background: rgba(0,0,0,0.4);
     border: 2px solid var(--accent-gold);
@@ -695,7 +692,6 @@
   .room-code-box:hover { background: rgba(212,168,67,0.08); }
   .room-code-hint { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 20px; }
   .room-code-hint span { color: var(--accent-gold); }
-  .room-waiting { display: flex; align-items: center; gap: 6px; justify-content: center; font-size: 0.8rem; color: var(--text-secondary); margin-top: 8px; }
   .room-input {
     width: 100%; padding: 12px 16px; margin-bottom: 16px;
     background: rgba(0,0,0,0.4); border: 1px solid rgba(212,168,67,0.4);
@@ -796,6 +792,7 @@
         <div>
           <div class="player-name" id="name-black">흑돌 <span class="player-badge" id="badge-black"></span></div>
           <div class="player-label" id="label-black">흑돌 · 선공</div>
+          <div class="player-clock" id="clock-1"></div>
         </div>
       </div>
     </div>
@@ -808,6 +805,7 @@
         <div>
           <div class="player-name" id="name-white">백돌 <span class="player-badge" id="badge-white"></span></div>
           <div class="player-label" id="label-white">백돌 · 후공</div>
+          <div class="player-clock" id="clock-2"></div>
         </div>
       </div>
     </div>
@@ -862,55 +860,46 @@
         <div class="mode-card-title">AI 대전</div>
         <div class="mode-card-desc">컴퓨터와<br>대결하기</div>
       </button>
-      <button type="button" class="mode-card" onclick="selectMode('online')">
-        <div class="mode-icon">👥</div>
-        <div class="mode-card-title">친구와 대전</div>
-        <div class="mode-card-desc">방 코드로<br>온라인 대결</div>
-      </button>
       <button type="button" class="mode-card" onclick="selectMode('team')">
-        <div class="mode-icon">⚔️</div>
-        <div class="mode-card-title">팀전</div>
-        <div class="mode-card-desc">최대 4명<br>2:2 · 3:1</div>
+        <div class="mode-icon">👥</div>
+        <div class="mode-card-title">방 만들기</div>
+        <div class="mode-card-desc">친구와 대전<br>1:1 · 2:2 · 3:1</div>
       </button>
     </div>
   </div>
 </div>
 
-<!-- Room overlay -->
-<div class="room-overlay" id="room-overlay">
-  <div class="room-modal" role="dialog" aria-modal="true" aria-labelledby="room-title">
-    <div class="room-title" id="room-title">친구와 대전</div>
-    <div class="room-subtitle">ZESTMOK · 온라인</div>
-    <div class="room-tabs">
-      <button class="room-tab active" id="tab-create" onclick="switchTab('create')">방 만들기</button>
-      <button class="room-tab" id="tab-join" onclick="switchTab('join')">방 참가</button>
+<!-- Rule (time control) category: 일반전 / 속기전 -->
+<div class="mode-overlay" id="rule-overlay">
+  <div class="mode-modal" role="dialog" aria-modal="true" aria-labelledby="rule-title">
+    <div class="mode-title" id="rule-title">대국 방식</div>
+    <div class="mode-subtitle" id="rule-sub">일반전 · 속기전 선택</div>
+    <div class="mode-cards">
+      <button type="button" class="mode-card" onclick="selectRule('n')">
+        <div class="mode-icon">⏳</div>
+        <div class="mode-card-title">일반전</div>
+        <div class="mode-card-desc">시간 제한 선택<br>다 쓰면 초읽기</div>
+      </button>
+      <button type="button" class="mode-card" onclick="selectRule('b')">
+        <span class="new-tag" aria-label="신규 모드">new!</span>
+        <div class="mode-icon">⚡</div>
+        <div class="mode-card-title">속기전</div>
+        <div class="mode-card-desc">한 수 5초 · 10초<br>넘기면 즉시 패배</div>
+      </button>
     </div>
-    <!-- Create room -->
-    <div class="room-panel active" id="panel-create">
-      <button type="button" class="room-code-box" id="room-code-display" onclick="copyRoomCode()" title="클릭하여 복사" aria-label="방 코드 복사">----</button>
-      <div class="room-code-hint">위 코드를 클릭하면 <span>복사</span>됩니다</div>
-      <div class="room-waiting">
-        <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
-        <span id="create-status-text" style="margin-left:6px">상대방을 기다리는 중...</span>
-      </div>
-    </div>
-    <!-- Join room -->
-    <div class="room-panel" id="panel-join">
-      <input class="room-input" id="join-code-input" placeholder="CODE" maxlength="6" oninput="this.value=this.value.toUpperCase()">
-      <div class="room-status" id="join-status"></div>
-      <button class="btn" onclick="joinRoom()">입장하기</button>
-    </div>
-    <button class="back-btn" onclick="backToModeSelect()">← 뒤로</button>
+    <button type="button" class="back-btn" onclick="ruleBack()">← 뒤로</button>
   </div>
 </div>
 
 <!-- Team mode overlay (entry + lobby) -->
 <div class="room-overlay" id="team-overlay">
   <div class="room-modal" role="dialog" aria-modal="true" aria-labelledby="team-title">
-    <div class="room-title" id="team-title">팀전</div>
-    <div class="room-subtitle">ZESTMOK · 최대 4명</div>
+    <div class="room-title" id="team-title">방 만들기</div>
+    <div class="room-subtitle">ZESTMOK · 최대 4명 · 1:1 · 2:2 · 3:1</div>
     <div id="tv-entry">
       <input class="room-input team-name" id="team-name" maxlength="12" placeholder="닉네임" aria-label="닉네임" autocomplete="off">
+      <div class="select-sub" id="tc-team-label">시간</div>
+      <div class="level-choices" role="radiogroup" aria-labelledby="tc-team-label" data-tc></div>
       <div class="select-sub">방 만들기 (내 팀 선택)</div>
       <div class="level-choices">
         <button type="button" class="level-chip" onclick="teamCreate(1)">흑팀으로</button>
@@ -923,7 +912,7 @@
     </div>
     <div id="tv-lobby" style="display:none">
       <button type="button" class="room-code-box" id="team-code-display" onclick="copyTeamCode()" title="클릭하여 복사" aria-label="방 코드 복사">----</button>
-      <div class="room-code-hint">인원 <span id="team-count">1/4</span></div>
+      <div class="room-code-hint">인원 <span id="team-count">1/4</span> · <span id="team-rule"></span></div>
       <div class="team-cols">
         <div class="team-col"><div class="team-col-title">흑팀</div><ul id="tl1"></ul><button type="button" class="btn secondary" id="tb1" onclick="teamPick(1)">흑팀 참가</button></div>
         <div class="team-col"><div class="team-col-title">백팀</div><ul id="tl2"></ul><button type="button" class="btn secondary" id="tb2" onclick="teamPick(2)">백팀 참가</button></div>
@@ -946,6 +935,8 @@
       <button type="button" class="level-chip" role="radio" data-level="hard" onclick="setLevel('hard')">어려움</button>
       <button type="button" class="level-chip" role="radio" data-level="boss" onclick="setLevel('boss')">æ 원준</button>
     </div>
+    <div class="select-sub" id="tc-ai-label">시간 (내 차례만 계산)</div>
+    <div class="level-choices" role="radiogroup" aria-labelledby="tc-ai-label" data-tc></div>
     <div class="select-sub">ZEST로 플레이할 돌을 선택하세요</div>
     <div class="stone-choices">
       <button type="button" class="stone-choice" onclick="selectColor(1)">
@@ -998,13 +989,8 @@ let aiPlayer = 2;
 let aiHist = []; // moves of the current AI game, fed to GomokuAI.learn when it ends
 let aiThinking = false;
 
-// Game mode: 'ai' | 'online'
+// Game mode: 'ai' | 'team' (방 만들기: 1:1 ~ 3:1)
 let gameMode = 'ai';
-// Online: 'host' | 'guest'
-let onlineRole = null;
-let peer = null;
-let conn = null;
-let myOnlinePlayer = 1; // in online mode
 
 const stoneImgs = {};
 (function() {
@@ -1044,21 +1030,32 @@ clickCanvas.style.opacity = '0';
 function selectMode(mode) {
   gameMode = mode;
   hideOverlay('mode-overlay');
-  if (mode === 'ai') {
-    showOverlay('select-overlay');
-  } else if (mode === 'team') {
-    teamEntry();
-  } else {
-    showOverlay('room-overlay');
-    initRoomOverlay();
-  }
+  showOverlay('rule-overlay');
 }
-
-function backToModeSelect() {
-  destroyPeer();
-  hideOverlay('room-overlay');
-  showOverlay('mode-overlay');
+// time control picked in the category step; it applies to the game you create (joiners get the room's rule)
+let RULE = {k: 'n', main: 0};
+const TC_OPTS = {n: [[0, '없음'], [300000, '5분'], [600000, '10분']], b: [[5000, '5초'], [10000, '10초']]};
+const ruleName = (r) => r.k === 'b' ? `속기전 · 한 수 ${r.per / 1000}초` : r.main ? `일반전 · ${r.main / 60000}분 + 초읽기 30초×3` : '일반전 · 시간 무제한';
+function selectRule(k) {
+  RULE = k === 'b' ? {k, per: 5000} : {k, main: 0};
+  renderTc();
+  hideOverlay('rule-overlay');
+  if (gameMode === 'ai') showOverlay('select-overlay'); else teamEntry();
 }
+function ruleBack() { hideOverlay('rule-overlay'); showOverlay('mode-overlay'); }
+function renderTc() {
+  const cur = RULE.k === 'b' ? RULE.per : RULE.main;
+  document.querySelectorAll('[data-tc]').forEach(box => {
+    box.textContent = '';
+    for (const [v, label] of TC_OPTS[RULE.k]) {
+      const b = box.appendChild(document.createElement('button'));
+      b.type = 'button'; b.className = 'level-chip'; b.textContent = label;
+      b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', cur === v);
+      b.onclick = () => { RULE = RULE.k === 'b' ? {k: 'b', per: v} : {k: 'n', main: v}; renderTc(); };
+    }
+  });
+}
+renderTc();
 
 const OVERLAYS = '.overlay.show,.select-overlay.show,.mode-overlay.show,.room-overlay.show';
 let lastFocus = null;
@@ -1084,9 +1081,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   const on = (id) => document.getElementById(id).classList.contains('show');
   if (on('overlay')) closeOverlay();
-  else if (on('room-overlay')) backToModeSelect();
   else if (on('team-overlay')) teamBack();
-  else if (on('select-overlay')) { hideOverlay('select-overlay'); showOverlay('mode-overlay'); }
+  else if (on('select-overlay')) { hideOverlay('select-overlay'); showOverlay('rule-overlay'); }
+  else if (on('rule-overlay')) ruleBack();
 });
 
 // AI difficulty
@@ -1101,7 +1098,7 @@ function applyBoss() { document.body.classList.toggle('rage', rage); document.bo
 function setLevel(l) {
   aiLevel = l;
   try { localStorage.setItem('zestmok-level', l); } catch (e) {}
-  document.querySelectorAll('.level-chip').forEach(b => b.setAttribute('aria-checked', b.dataset.level === l));
+  document.querySelectorAll('.level-chip[data-level]').forEach(b => b.setAttribute('aria-checked', b.dataset.level === l));
 }
 setLevel(aiLevel);
 
@@ -1113,15 +1110,8 @@ const ICE_SERVERS = [
   // {urls: 'turn:YOUR_TURN_HOST:443?transport=tcp', username: 'USER', credential: 'PASS'},
 ];
 const PEER_OPTS = {debug: 0, config: {iceServers: ICE_SERVERS}};
-const PEER_PREFIX = 'zestmok-';
 const CODE_LEN = 6;
-const HEARTBEAT_MS = 5000, DEAD_MS = 15000, GRACE_MS = 10000, REJOIN_MS = 3000;
 
-let roomCode = '', createTries = 0;
-let onlineStarted = false, peerLost = false;
-let lastSeen = 0, hbTimer = null, graceTimer = null, rejoinTimer = null;
-let restartPending = false, incomingRestart = false;
-let joinResolve = null; // guest: set while waiting for host's 'welcome'
 
 function generateCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1138,193 +1128,6 @@ function errText(err) {
   return '연결 오류가 발생했습니다.';
 }
 
-// Pure check for a move received from the opponent.
-function isValidMove(msg, b, turn, expected, over) {
-  return !over && turn === expected && !!msg &&
-    Number.isInteger(msg.row) && Number.isInteger(msg.col) &&
-    msg.row >= 0 && msg.row < BOARD_SIZE && msg.col >= 0 && msg.col < BOARD_SIZE &&
-    b[msg.row][msg.col] === 0;
-}
-
-function isValidSync(m) {
-  return m && (m.currentPlayer === 1 || m.currentPlayer === 2) && Array.isArray(m.board) &&
-    m.board.length === BOARD_SIZE &&
-    m.board.every(r => Array.isArray(r) && r.length === BOARD_SIZE && r.every(v => v === 0 || v === 1 || v === 2));
-}
-
-function switchTab(tab) {
-  document.getElementById('tab-create').classList.toggle('active', tab === 'create');
-  document.getElementById('tab-join').classList.toggle('active', tab === 'join');
-  document.getElementById('panel-create').classList.toggle('active', tab === 'create');
-  document.getElementById('panel-join').classList.toggle('active', tab === 'join');
-  if (tab === 'create') { createTries = 0; initCreateRoom(); }
-  else destroyPeer();
-}
-
-function initRoomOverlay() {
-  switchTab('create');
-}
-
-function setCreateStatus(msg) { document.getElementById('create-status-text').textContent = msg; }
-
-function initCreateRoom() {
-  destroyPeer();
-  roomCode = generateCode();
-  document.getElementById('room-code-display').textContent = roomCode;
-  setCreateStatus('상대방을 기다리는 중...');
-  const p = peer = new Peer(PEER_PREFIX + roomCode, PEER_OPTS);
-  p.on('connection', onHostConnection);
-  p.on('disconnected', () => { try { if (peer === p && !p.destroyed) p.reconnect(); } catch (e) {} });
-  p.on('error', (err) => {
-    if (peer !== p) return;
-    if (err.type === 'unavailable-id' && !onlineStarted && createTries++ < 5) return initCreateRoom();
-    if (!onlineStarted) setCreateStatus('오류: ' + errText(err));
-  });
-}
-
-function connAlive() {
-  return !!conn && conn.open && !peerLost && Date.now() - lastSeen < DEAD_MS;
-}
-
-function onHostConnection(c) {
-  if (connAlive()) { // room full
-    c.on('open', () => { try { c.send({type: 'full'}); } catch (e) {} setTimeout(() => c.close(), 300); });
-    return;
-  }
-  if (conn) { const old = conn; conn = null; try { old.close(); } catch (e) {} }
-  conn = c;
-  setupConn(c);
-  c.on('open', () => {
-    if (conn !== c) return;
-    onlineRole = 'host';
-    myOnlinePlayer = 1;
-    send({type: 'welcome'});
-    if (onlineStarted) { sendSync(); resumeOnline(); return; } // guest rejoined
-    setCreateStatus('상대방이 연결되었습니다!');
-    setTimeout(() => {
-      if (conn !== c) return;
-      hideOverlay('room-overlay');
-      startOnlineGame();
-    }, 800);
-  });
-}
-
-// Connect to a host room. onOpen/onFail each fire at most once.
-function guestConnect(code, onOpen, onFail) {
-  let done = false;
-  const fail = (e) => { if (!done) { done = true; clearTimeout(t); onFail(e); } };
-  const p = peer = new Peer(undefined, PEER_OPTS);
-  const t = setTimeout(() => fail('timeout'), 12000);
-  p.on('open', () => {
-    const c = p.connect(PEER_PREFIX + code, {reliable: true});
-    c.on('open', () => {
-      if (done || peer !== p) return;
-      done = true; clearTimeout(t);
-      conn = c; setupConn(c); onOpen();
-    });
-    c.on('error', fail);
-  });
-  p.on('error', fail);
-}
-
-function joinRoom() {
-  const code = document.getElementById('join-code-input').value.trim().toUpperCase();
-  if (code.length !== CODE_LEN) {
-    setJoinStatus(CODE_LEN + '자리 코드를 입력하세요', 'err');
-    return;
-  }
-  setJoinStatus('연결 중...', '');
-  destroyPeer();
-  roomCode = code;
-  guestConnect(code, () => {
-    const t = setTimeout(() => { joinResolve = null; destroyPeer(); setJoinStatus('방이 응답하지 않습니다.', 'err'); }, 5000);
-    joinResolve = () => {
-      clearTimeout(t); joinResolve = null;
-      onlineRole = 'guest';
-      myOnlinePlayer = 2;
-      setJoinStatus('연결 성공!', 'ok');
-      setTimeout(() => {
-        hideOverlay('room-overlay');
-        startOnlineGame();
-      }, 500);
-    };
-  }, (err) => { destroyPeer(); setJoinStatus(errText(err), 'err'); });
-}
-
-function setupConn(c) {
-  lastSeen = Date.now();
-  c.on('data', (d) => { if (c !== conn) return; lastSeen = Date.now(); onReceiveData(d); });
-  c.on('close', () => { if (c === conn) onPeerLost(); });
-  c.on('error', () => { if (c === conn) onPeerLost(); });
-}
-
-function send(msg) { if (conn && conn.open) { try { conn.send(msg); } catch (e) {} } }
-
-function onReceiveData(data) {
-  if (!data || typeof data.type !== 'string') return;
-  if (!onlineStarted) {
-    if (data.type === 'welcome' && joinResolve) joinResolve();
-    else if (data.type === 'full') { destroyPeer(); setJoinStatus('방이 가득 찼습니다.', 'err'); }
-    return;
-  }
-  switch (data.type) {
-    case 'ping': break;
-    case 'move':
-      if (isValidMove(data, board, currentPlayer, 3 - myOnlinePlayer, gameOver) && !isForbidden(data.row, data.col, currentPlayer)) {
-        doPlaceStone(data.row, data.col, false);
-      } else if (onlineRole === 'host') sendSync();
-      else send({type: 'need-sync'});
-      break;
-    case 'need-sync': if (onlineRole === 'host') sendSync(); break;
-    case 'sync': if (onlineRole === 'guest') applySync(data); break;
-    case 'restart-req':
-      if (restartPending) { send({type: 'restart-ack'}); doNewOnlineGame(); }
-      else { incomingRestart = true; showEndOverlay('다시 하기 요청', '상대가 한 판 더 하자고 합니다. 버튼을 눌러 수락하세요.'); }
-      break;
-    case 'restart-ack': if (restartPending) doNewOnlineGame(); break;
-  }
-}
-
-function sendMove(row, col) { send({type: 'move', row, col}); }
-
-function sendSync() {
-  send({type: 'sync', board, currentPlayer, gameOver, lastPlaced, winningCells});
-}
-
-function applySync(m) {
-  if (!isValidSync(m)) return;
-  board = m.board; currentPlayer = m.currentPlayer; gameOver = !!m.gameOver;
-  lastPlaced = m.lastPlaced || null; winningCells = Array.isArray(m.winningCells) ? m.winningCells : [];
-  refreshStones(); updateTurn();
-  resumeOnline();
-}
-
-// "다시 하기" in online mode: both sides must agree.
-function onlineRematch() {
-  if (incomingRestart) { send({type: 'restart-ack'}); doNewOnlineGame(); return; }
-  if (!connAlive()) { showEndOverlay('연결 끊김', '상대와 연결되어 있지 않습니다.'); return; }
-  restartPending = true;
-  send({type: 'restart-req'});
-  document.getElementById('modal-sub').textContent = '상대의 수락을 기다리는 중...';
-}
-
-function copyRoomCode() {
-  const code = document.getElementById('room-code-display').textContent;
-  if (code === '----' || code.length !== CODE_LEN) return;
-  navigator.clipboard.writeText(code).then(() => {
-    const el = document.getElementById('room-code-display');
-    const orig = el.textContent;
-    el.textContent = '복사됨!';
-    setTimeout(() => el.textContent = orig, 1200);
-  }).catch(() => {});
-}
-
-function setJoinStatus(msg, type) {
-  const el = document.getElementById('join-status');
-  el.textContent = msg;
-  el.className = 'room-status' + (type ? ' ' + type : '');
-}
-
 function setConnStatus(online, text) {
   const s = document.getElementById('conn-status');
   const d = document.getElementById('conn-dot');
@@ -1332,98 +1135,6 @@ function setConnStatus(online, text) {
   s.style.display = 'flex';
   d.className = 'conn-dot' + (online ? '' : ' offline');
   t.textContent = text || (online ? '연결됨' : '상대방 연결 끊김');
-}
-
-// ── connection health: heartbeat, grace period, guest auto-rejoin ──
-function startHeartbeat() {
-  clearInterval(hbTimer);
-  hbTimer = setInterval(() => {
-    send({type: 'ping'});
-    if (!peerLost && Date.now() - lastSeen > DEAD_MS) onPeerLost();
-  }, HEARTBEAT_MS);
-}
-
-function onPeerLost() {
-  if (!onlineStarted) { // guest left before the game began
-    if (onlineRole === 'host' && conn) { conn = null; setCreateStatus('상대방을 기다리는 중...'); }
-    return;
-  }
-  if (peerLost) return;
-  peerLost = true;
-  if (gameOver) { setConnStatus(false); return; }
-  setConnStatus(false, '상대방 연결 끊김 — 재접속 대기 중');
-  clearTimeout(graceTimer);
-  graceTimer = setTimeout(abandonOnline, GRACE_MS);
-  if (onlineRole === 'guest') startRejoin();
-}
-
-function resumeOnline() {
-  peerLost = false;
-  lastSeen = Date.now();
-  clearTimeout(graceTimer); clearInterval(rejoinTimer);
-  setConnStatus(true);
-}
-
-function startRejoin() {
-  clearInterval(rejoinTimer);
-  let busy = false;
-  rejoinTimer = setInterval(() => {
-    if (busy || !peerLost) return;
-    busy = true;
-    closeLink();
-    guestConnect(roomCode, () => { busy = false; send({type: 'need-sync'}); }, () => { busy = false; });
-  }, REJOIN_MS);
-}
-
-function abandonOnline() {
-  clearInterval(rejoinTimer);
-  gameOver = true;
-  setConnStatus(false, '연결 종료');
-  showEndOverlay('대국 종료', '상대와 연결이 끊겨 대국이 종료되었습니다. (무효)');
-}
-
-function closeLink() {
-  if (conn) { const c = conn; conn = null; try { c.close(); } catch (e) {} }
-  if (peer) { const p = peer; peer = null; try { p.destroy(); } catch (e) {} }
-}
-
-function destroyPeer() {
-  clearInterval(hbTimer); clearInterval(rejoinTimer); clearTimeout(graceTimer);
-  onlineStarted = false; peerLost = false; restartPending = false; incomingRestart = false; joinResolve = null;
-  closeLink();
-}
-
-
-function startOnlineGame() {
-  // host=black(1), guest=white(2)
-  humanPlayer = myOnlinePlayer;
-  aiPlayer = myOnlinePlayer === 1 ? 2 : 1;
-  onlineStarted = true; peerLost = false; restartPending = incomingRestart = false;
-  setConnStatus(true);
-  startHeartbeat();
-  updateOnlineBadges();
-  document.getElementById('conn-status').style.display = 'flex';
-  gameOver = false;
-  currentPlayer = 1;
-  initBoard();
-  updateTurn();
-  setAiThinking(false);
-}
-
-function updateOnlineBadges() {
-  const nBlack = document.getElementById('name-black');
-  const nWhite = document.getElementById('name-white');
-  const lBlack = document.getElementById('label-black');
-  const lWhite = document.getElementById('label-white');
-  if (myOnlinePlayer === 1) {
-    nBlack.innerHTML = 'ZEST <span class="player-badge badge-human" id="badge-black">나</span>';
-    nWhite.innerHTML = 'ZAIST <span class="player-badge online-badge" id="badge-white">상대</span>';
-  } else {
-    nBlack.innerHTML = 'ZAIST <span class="player-badge online-badge" id="badge-black">상대</span>';
-    nWhite.innerHTML = 'ZEST <span class="player-badge badge-human" id="badge-white">나</span>';
-  }
-  lBlack.textContent = '흑돌 · 선공';
-  lWhite.textContent = '백돌 · 후공';
 }
 
 // ─── TEAM MODE (up to 4 players, host-authoritative star over PeerJS) ─────────
@@ -1441,14 +1152,14 @@ function tmSid() {
 function tmBase(role, code) {
   return {role, code, me: tmSid(), name: TeamLogic.cleanName(document.getElementById('team-name').value) || 'Player',
     peer: null, conn: null, conns: {}, seen: {}, wipe: {}, until: {}, players: [], started: false, turn: null, result: null,
-    hostId: '', lastSeen: Date.now(), hb: null, tick: null, rejoin: null, migr: null, busy: false, joined: false, sig: '', ann: '', endShown: false};
+    hostId: '', rule: RULE, lastSeen: Date.now(), hb: null, tick: null, rejoin: null, migr: null, busy: false, joined: false, sig: '', ann: '', endShown: false};
 }
 const tmMe = () => TM && TM.players.find(p => p.id === TM.me);
 const tmMyTeam = () => { const m = tmMe(); return m ? m.team : 1; };
 function tmMover() { return TM && TM.started && TM.turn ? TeamLogic.mover(TM.players, TM.turn) : null; }
 function tmMyTurn() { const m = tmMover(); return !!m && !gameOver && m.id === TM.me; }
-function myTurn() { return gameMode === 'ai' ? currentPlayer === humanPlayer : gameMode === 'team' ? tmMyTurn() : currentPlayer === myOnlinePlayer; }
-function myStoneColor() { return gameMode === 'ai' ? humanPlayer : gameMode === 'team' ? tmMyTeam() : myOnlinePlayer; }
+function myTurn() { return gameMode === 'ai' ? currentPlayer === humanPlayer : tmMyTurn(); }
+function myStoneColor() { return gameMode === 'ai' ? humanPlayer : tmMyTeam(); }
 function tmTurnText() {
   if (!TM || !TM.started) return '팀전 대기 중';
   if (gameOver) return '대국 종료';
@@ -1468,7 +1179,7 @@ function teamEntry() {
   tmView('entry'); tmStatus('');
   showOverlay('team-overlay');
 }
-function teamBack() { tmLeave(); hideOverlay('team-overlay'); showOverlay('mode-overlay'); }
+function teamBack() { tmLeave(); hideOverlay('team-overlay'); showOverlay('rule-overlay'); }
 function tmFatal(msg) {
   tmLeave(); hideOverlay('overlay');
   initBoard(); scores = {1: 0, 2: 0}; gameOver = false; updateScores(); updateTurn();
@@ -1489,6 +1200,7 @@ function tmLeave() {
   Object.values(t.wipe).forEach(clearTimeout);
   document.getElementById('team-banner').textContent = '';
   document.getElementById('conn-status').style.display = 'none';
+  clockStop();
 }
 function copyTeamCode() {
   const el = document.getElementById('team-code-display'), code = TM && TM.code;
@@ -1583,12 +1295,14 @@ function tmHostStart() {
   if (TM.started || !TeamLogic.canStart(TM.players).ok) return;
   initBoard(); gameOver = false;
   TM.started = true; TM.result = null; TM.turn = {team: 1, n: {1: 0, 2: 0}};
+  clockStart(TM.rule);
   tmBroadcast();
 }
 function tmHostMove(id, d) {
   if (!TM.started || !TeamLogic.validMove(d, board, gameOver, TM.turn, TM.players, id)) return;
   const team = TM.turn.team;
   if (isForbidden(d.row, d.col, team)) return;
+  if (!clockMove(team)) return tmHostTimeUp(team);
   board[d.row][d.col] = team; lastPlaced = {row: d.row, col: d.col};
   const w = checkWin(d.row, d.col);
   if (w) { winningCells = w; gameOver = true; scores[team]++; TM.result = {winner: team, reason: 'five'}; }
@@ -1597,7 +1311,13 @@ function tmHostMove(id, d) {
   tmUpdateWipe();
   tmBroadcast();
 }
+function tmHostTimeUp(t) {
+  if (!TM || TM.role !== 'host' || !TM.started || gameOver) return;
+  gameOver = true; scores[3 - t]++; TM.result = {winner: 3 - t, reason: 'time'};
+  tmUpdateWipe(); tmBroadcast();
+}
 function tmHostRestart() {
+  clockStop();
   TM.started = false; TM.turn = null; TM.result = null; gameOver = false;
   TM.players = TM.players.filter(p => p.online);
   initBoard(); tmUpdateWipe();
@@ -1627,7 +1347,8 @@ function tmWipeFire(t) {
 }
 function tmSnap() {
   const cd = Object.keys(TM.until).map(t => ({team: +t, ms: Math.max(0, TM.until[t] - Date.now())}));
-  return {type: 'snap', hostId: TM.hostId, players: TM.players, started: TM.started, turn: TM.turn, board, scores, gameOver, lastPlaced, winningCells, result: TM.result, cd};
+  return {type: 'snap', hostId: TM.hostId, players: TM.players, started: TM.started, turn: TM.turn, board, scores, gameOver, lastPlaced, winningCells, result: TM.result, cd,
+    rule: TM.rule, clock: CLK && TM.started ? {side: CLK.side, used: Date.now() - CLK.t0} : null};
 }
 function tmBroadcast() {
   const s = tmSnap();
@@ -1700,10 +1421,14 @@ function tmGuestData(d) {
   if (TM.migr) { TM.migr = null; clearInterval(TM.rejoin); TM.busy = false; }
   TM.players = d.players; TM.started = d.started; TM.turn = d.turn; TM.hostId = d.hostId;
   const r = d.result;
-  TM.result = r && typeof r === 'object' ? {winner: r.winner === 1 || r.winner === 2 ? r.winner : 0, reason: r.reason === 'wipe' ? 'wipe' : 'five', draw: !!r.draw, void: !!r.void} : null;
+  TM.result = r && typeof r === 'object' ? {winner: r.winner === 1 || r.winner === 2 ? r.winner : 0, reason: ['wipe', 'time'].includes(r.reason) ? r.reason : 'five', draw: !!r.draw, void: !!r.void} : null;
   TM.until = {};
   (Array.isArray(d.cd) ? d.cd : []).forEach(x => { if ((x.team === 1 || x.team === 2) && Number.isFinite(x.ms)) TM.until[x.team] = Date.now() + x.ms; });
   board = d.board; scores = {1: d.scores[1], 2: d.scores[2]}; gameOver = !!d.gameOver;
+  TM.rule = TeamLogic.validRule(d.rule) ? d.rule : {k: 'n', main: 0};
+  const k = d.clock;
+  CLK = k && k.side && TeamLogic.validClock(k.side[1]) && TeamLogic.validClock(k.side[2]) && Number.isFinite(k.used) && k.used >= 0
+    ? {rule: TM.rule, side: {1: k.side[1], 2: k.side[2]}, t0: Date.now() - k.used} : null;
   const lp = d.lastPlaced;
   lastPlaced = lp && Number.isInteger(lp.row) && Number.isInteger(lp.col) && lp.row >= 0 && lp.row < BOARD_SIZE && lp.col >= 0 && lp.col < BOARD_SIZE ? {row: lp.row, col: lp.col} : null;
   winningCells = Array.isArray(d.winningCells) ? d.winningCells.filter(c => Array.isArray(c) && c.length === 2 && c.every(Number.isInteger)) : [];
@@ -1762,7 +1487,7 @@ function tmRender() {
   if (!TM || !TM.joined) return;
   currentPlayer = TM.turn ? TM.turn.team : 1;
   tmDrawStones();
-  updateTurn(); updateScores(); tmBadges(); tmBanner();
+  updateTurn(); updateScores(); tmBadges(); tmBanner(); clockDraw();
   if (lastPlaced && TM.ann !== lastPlaced.row + ',' + lastPlaced.col + board[lastPlaced.row][lastPlaced.col]) {
     TM.ann = lastPlaced.row + ',' + lastPlaced.col + board[lastPlaced.row][lastPlaced.col];
     announce((board[lastPlaced.row][lastPlaced.col] === 1 ? '흑돌 ' : '백돌 ') + coordName(lastPlaced.row, lastPlaced.col) + ' 착수');
@@ -1800,7 +1525,7 @@ function tmShowEnd() {
   stone.className = `modal-stone ${w === 1 ? 'black-stone' : 'white-stone'}`;
   stone.style.background = ''; stone.style.boxShadow = '';
   document.getElementById('modal-winner').textContent = `${w === 1 ? '흑' : '백'}팀 승리!` + (mine ? ' 🎉' : '');
-  document.getElementById('modal-sub').textContent = mine ? '우리 팀이 이겼습니다!' : (r.reason === 'wipe' ? '상대 팀 전원이 이탈했습니다.' : '상대 팀이 이겼습니다.');
+  document.getElementById('modal-sub').textContent = r.reason === 'time' ? (mine ? '상대 팀이 시간을 초과했습니다!' : '시간 초과로 졌습니다.') : mine ? '우리 팀이 이겼습니다!' : (r.reason === 'wipe' ? '상대 팀 전원이 이탈했습니다.' : '상대 팀이 이겼습니다.');
   resultTitle('승리');
   showOverlay('overlay');
 }
@@ -1823,6 +1548,7 @@ function tmLobby() {
   const host = TM.role === 'host', online = TM.players.filter(p => p.online);
   document.getElementById('team-code-display').textContent = TM.code;
   document.getElementById('team-count').textContent = `${online.length}/${TeamLogic.MAX_PLAYERS}`;
+  document.getElementById('team-rule').textContent = ruleName(TM.rule);
   for (const t of [1, 2]) {
     const ul = document.getElementById('tl' + t);
     ul.textContent = '';
@@ -1853,6 +1579,7 @@ function selectColor(color) {
   currentPlayer = 1;
   document.getElementById('conn-status').style.display = 'none';
   initBoard();
+  clockStart(RULE);
   updateTurn();
   setAiThinking(false);
   if (humanPlayer === 2) setTimeout(doAiMove, 400);
@@ -1937,6 +1664,55 @@ function refreshStones() {
   }
 }
 
+// ─── CLOCK ────────────────────────────────────────────────────
+// One clock for the current game (rules in team.js). AI games: only the human's time runs.
+// Rooms: the host decides timeouts; guests just display the host's clock (t0 rebuilt from each snapshot).
+let CLK = null; // {rule, side: {1: {main, per}, 2: {...}}, t0: local ms when the current turn started}
+function clockStart(rule) {
+  CLK = rule.k === 'n' && !rule.main ? null : {rule, side: {1: TeamLogic.clockInit(rule), 2: TeamLogic.clockInit(rule)}, t0: Date.now()};
+  clockDraw();
+}
+function clockStop() { CLK = null; clockDraw(); }
+const clockRuns = (color) => !!CLK && (gameMode !== 'ai' || color === humanPlayer);
+// `color` just moved: charge its time and start the other side's turn. false = it had already run out.
+function clockMove(color) {
+  if (!CLK) return true;
+  if (clockRuns(color)) {
+    const n = TeamLogic.spend(CLK.rule, CLK.side[color], Date.now() - CLK.t0);
+    if (!n) return false;
+    CLK.side[color] = n;
+  }
+  CLK.t0 = Date.now();
+  return true;
+}
+const fmtMs = (ms) => { const t = Math.ceil(ms / 1000); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+function clockDraw() {
+  for (const c of [1, 2]) {
+    const el = document.getElementById('clock-' + c);
+    if (!clockRuns(c)) { el.textContent = ''; continue; }
+    const live = !gameOver && currentPlayer === c && (gameMode === 'ai' || (TM && TM.started));
+    const v = TeamLogic.view(CLK.rule, CLK.side[c], live ? Date.now() - CLK.t0 : 0);
+    let low = false;
+    if ('main' in v) el.textContent = '⏱ ' + fmtMs(v.main);
+    else if (CLK.rule.k === 'b') { el.textContent = '⚡ ' + (v.byo / 1000).toFixed(1) + '초'; low = v.byo <= 3000; }
+    else { el.textContent = `초읽기 ${Math.ceil(v.byo / 1000)}초 · ${v.per}회`; low = v.byo <= 10000 || v.per <= 1; }
+    el.classList.toggle('low', live && low);
+  }
+}
+function clockTick() {
+  clockDraw();
+  if (!CLK || gameOver || !clockRuns(currentPlayer)) return;
+  if (gameMode === 'ai' ? aiThinking : !(TM && TM.started && TM.role === 'host')) return;
+  if (Date.now() - CLK.t0 >= TeamLogic.budget(CLK.rule, CLK.side[currentPlayer])) timeUp(currentPlayer);
+}
+setInterval(clockTick, 100);
+function timeUp(color) {
+  if (gameMode !== 'ai') return tmHostTimeUp(color);
+  gameOver = true; scores[aiPlayer]++; updateScores(); updateTurn(); clockDraw(); // ponytail: a timeout is not learned (it says nothing about the moves)
+  announce('시간 초과 패배');
+  showEndOverlay('시간 초과 패배', CLK.rule.k === 'b' ? `한 수 ${CLK.rule.per / 1000}초를 넘겼습니다.` : '초읽기를 모두 썼습니다.');
+}
+
 // ─── PLACING STONES ───────────────────────────────────────────
 // Korean rule: black may not play 3-3 or 6+ (4-4 ok). Applies to every mode; white unrestricted.
 function isForbidden(row, col, player) {
@@ -1958,11 +1734,6 @@ function handleClick(row, col) {
   } else if (gameMode === 'team') {
     if (!tmMyTurn()) return;
     if (TM.role === 'host') tmHostMove(TM.me, {row, col}); else tmSend({type: 'move', row, col});
-  } else {
-    // online
-    if (currentPlayer !== myOnlinePlayer) return;
-    sendMove(row, col);
-    doPlaceStone(row, col, false);
   }
 }
 
@@ -1984,6 +1755,7 @@ function aiLearn(winner) {
 }
 function doPlaceStone(row, col, triggerAi) {
   if (gameOver || board[row][col] !== 0) return;
+  if (!clockMove(currentPlayer)) return timeUp(currentPlayer);
   if (gameMode === 'ai') aiHist.push({p: currentPlayer, row, col, key: GomokuAI.posKey(board, currentPlayer)});
   board[row][col] = currentPlayer;
   document.querySelectorAll('.stone.last-placed').forEach(e=>e.classList.remove('last-placed'));
@@ -2044,7 +1816,7 @@ async function flipTable() {
   aiPlayer = 1; humanPlayer = 2; // AI always opens the restarted game (black)
   rage = true; updateBadges(); // AI stones = angry photo for this game only
   gameOver = false; currentPlayer = 1;
-  initBoard(); updateTurn();
+  initBoard(); clockStart(RULE); updateTurn();
   wrap.getAnimations().forEach(a => a.cancel());
   if (!rm) await wrap.animate([{transform: 'perspective(900px) rotateX(-80deg) scale(.8)', opacity: 0}, {transform: 'none', opacity: 1}], {duration: 600, easing: 'cubic-bezier(.34,1.56,.64,1)'}).finished; // reassembles
   aiThinking = false;
@@ -2081,13 +1853,7 @@ function updateTurn(){
     const isAiTurn=currentPlayer===aiPlayer;
     const name=currentPlayer===humanPlayer?'ZEST':aiName();
     text.textContent=isAiTurn?`${name} (AI) 차례`:`${name} 차례`;
-  } else if(gameMode==='team'){
-    text.textContent=tmTurnText();
-  } else {
-    const isMyTurn=currentPlayer===myOnlinePlayer;
-    const name=isMyTurn?'ZEST':'ZAIST';
-    text.textContent=isMyTurn?`${name} (나) 차례`:`${name} 차례`;
-  }
+  } else text.textContent=tmTurnText();
   if(document.activeElement===clickCanvas)kbShow();
   document.getElementById('card-black').classList.toggle('active',currentPlayer===1);
   document.getElementById('card-white').classList.toggle('active',currentPlayer===2);
@@ -2110,11 +1876,9 @@ function showWinOverlay(player){
   const sub=document.getElementById('modal-sub');
   stone.className=`modal-stone ${player===1?'black-stone':'white-stone'}`;
   stone.style.background=''; stone.style.boxShadow=''; stone.style.width=''; stone.style.height='';
-  let isHuman;
-  if(gameMode==='ai') isHuman=player===humanPlayer;
-  else isHuman=player===myOnlinePlayer;
-  winner.textContent=isHuman?'ZEST 승리! 🎉':(gameMode==='ai'?aiName():'ZAIST')+' 승리!';
-  sub.textContent=isHuman?'당신이 이겼습니다!':(gameMode==='ai'?'🤖 AI가 이겼습니다':'상대방이 이겼습니다');
+  const isHuman=player===humanPlayer; // AI games only (rooms use tmShowEnd)
+  winner.textContent=isHuman?'ZEST 승리! 🎉':aiName()+' 승리!';
+  sub.textContent=isHuman?'당신이 이겼습니다!':'🤖 AI가 이겼습니다';
   resultTitle('승리');
   if(gameMode==='ai'&&aiLevel==='boss'&&!isHuman){ // lost to the boss: his portrait + "패배"
     stone.className='modal-stone';
@@ -2137,7 +1901,7 @@ function showDrawOverlay(){
 
 function closeOverlay(){ hideOverlay('overlay'); }
 
-function rematch(){ if(gameMode==='team') return tmRematch(); if(gameMode==='online'&&onlineStarted) onlineRematch(); else newGame(); }
+function rematch(){ if(gameMode==='team') return tmRematch(); newGame(); }
 
 function showEndOverlay(title,sub){
   const stone=document.getElementById('modal-stone');
@@ -2150,19 +1914,12 @@ function showEndOverlay(title,sub){
 }
 
 function newGame(){
-  const inGame=!gameOver&&board.some(r=>r.some(Boolean))&&((gameMode==='online'&&onlineStarted)||gameMode==='ai'||(gameMode==='team'&&TM&&TM.started));
+  const inGame=!gameOver&&board.some(r=>r.some(Boolean))&&(gameMode==='ai'||(gameMode==='team'&&TM&&TM.started));
   if(inGame&&!confirm('진행 중인 대국을 종료하고 나가시겠습니까?'))return;
   closeOverlay();
-  destroyPeer(); tmLeave();
+  tmLeave(); clockStop();
   document.getElementById('conn-status').style.display='none';
   showOverlay('mode-overlay');
-}
-
-function doNewOnlineGame(){
-  closeOverlay();
-  restartPending=false; incomingRestart=false;
-  gameOver=false; aiThinking=false; currentPlayer=1;
-  initBoard(); updateTurn(); setAiThinking(false);
 }
 
 function resetScore(){ if((scores[1]||scores[2])&&!confirm('전적을 초기화할까요?'))return; scores={1:0,2:0}; updateScores(); }
@@ -2243,9 +2000,6 @@ clickCanvas.addEventListener('touchend',(e)=>{
 });
 
 // Enter key for room join
-document.getElementById('join-code-input').addEventListener('keydown',(e)=>{
-  if(e.key==='Enter')joinRoom();
-});
 document.getElementById('team-code').addEventListener('keydown',(e)=>{
   if(e.key==='Enter')teamJoin();
 });
