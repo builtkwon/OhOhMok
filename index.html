@@ -1487,7 +1487,7 @@ function tmRender() {
   if (!TM || !TM.joined) return;
   currentPlayer = TM.turn ? TM.turn.team : 1;
   tmDrawStones();
-  updateTurn(); updateScores(); tmBadges(); tmBanner();
+  updateTurn(); updateScores(); tmBadges(); tmBanner(); clockDraw();
   if (lastPlaced && TM.ann !== lastPlaced.row + ',' + lastPlaced.col + board[lastPlaced.row][lastPlaced.col]) {
     TM.ann = lastPlaced.row + ',' + lastPlaced.col + board[lastPlaced.row][lastPlaced.col];
     announce((board[lastPlaced.row][lastPlaced.col] === 1 ? '흑돌 ' : '백돌 ') + coordName(lastPlaced.row, lastPlaced.col) + ' 착수');
