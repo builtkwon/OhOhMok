@@ -52,10 +52,10 @@ npm run serve   # http://localhost:8080
 ## 온라인 대전 구조
 
 - 서버 코드는 없습니다. 브라우저끼리 WebRTC(PeerJS 1.5.4, `vendor/`)로 직접 통신하고, 연결 중개만 PeerJS 공용 브로커(`0.peerjs.com`)를 씁니다.
-- 방 만들기 → 6자리 코드 공유 → 상대가 방 참가에서 입력. 방은 2명까지입니다.
-- 받은 수는 범위·차례·빈 칸을 검증하고, 어긋나면 호스트 기준으로 보드를 다시 맞춥니다.
-- 연결이 끊기면 10초간 재접속을 기다립니다(게스트 자동 재접속). 시간이 지나면 대국이 무효로 종료됩니다.
-- 재시작은 상대가 수락해야 진행됩니다.
+- 방 만들기 → 6자리 코드 공유 → 참가자가 코드 입력. 최대 4명(1:1 ~ 3:1), 방장(호스트)이 판의 기준입니다.
+- 참가자는 수만 보내고, 방장이 차례·범위·빈 칸·금수·시간을 검증한 뒤 전체 상태(스냅샷)를 모두에게 보냅니다. 시계 상태도 스냅샷에 포함됩니다.
+- 방장이 나가면 다음 접속자(입장 순서)가 같은 방 코드를 다시 열어 방장을 승계합니다. 한 팀 전원이 10초 넘게 이탈하면 그 팀 패배.
+- 자세한 설계: [`docs/team-mode.md`](docs/team-mode.md)
 
 ### 연결이 안 되는 경우 (TURN)
 
@@ -71,12 +71,13 @@ npm run serve   # http://localhost:8080
 
 | 파일 | 설명 |
 |---|---|
-| `index.html` | UI, 게임 로직, 온라인 대전 |
+| `index.html` | UI, 게임 로직, 방 만들기(온라인), 시계 |
 | `ai.js` | AI (패턴 평가 + 알파베타 탐색 + 대국 학습) |
-| `team.js` | 팀전 규칙(순번, 시작 조건, 방장 승계) 순수 로직 |
+| `team.js` | 방 규칙(순번, 시작 조건, 방장 승계) + 시간 제한(일반전/속기전) 순수 로직 |
 | `img/` | 돌 이미지, 원준 보스 이미지, 파비콘, 공유용 OG 이미지 |
 | `vendor/peerjs.min.js` | PeerJS 1.5.4 (MIT) |
-| `tests/` | 테스트 |
+| `tests/` | 테스트 + AI 측정 도구(`duel.js`, `duel-record.js`, `analyze-losses.js`) |
+| `docs/` | 설계·측정 기록 ([`boss-ai.md`](docs/boss-ai.md): 보스 AI 측정 결과와 검토 대기 안) |
 
 ## 테스트
 
@@ -84,5 +85,13 @@ npm run serve   # http://localhost:8080
 npm test                    # AI 단위 테스트 (Node만 필요)
 npm i && npx playwright install chromium
 npm run test:ui             # 브라우저 UI/키보드/모바일 테스트 (로컬)
-npm run test:team           # 4개 브라우저 팀전 E2E (인터넷 필요)
+npm run test:team           # 4개 브라우저 방 만들기 E2E + 1:1 속기전 (인터넷 필요)
+```
+
+AI 세기 측정 (수동, 느림):
+
+```sh
+node tests/duel.js boss hard 20          # 흑백 교대 40판, 승률만 (약 45분)
+node tests/duel-record.js 20 1 games.json  # 같은 40판 + 기보 저장
+node tests/analyze-losses.js games.json    # 진 판별 원인 분석 (판당 수 분)
 ```
