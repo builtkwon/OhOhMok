@@ -11,8 +11,8 @@
     // easy: 1-ply, misses blocks. normal: shallow search. hard: deep search + forced-win (four-chain) search for both sides.
     easy:   { depth: 1, K: 5,  ms: 0,    vcf: 0 },
     normal: { depth: 3, K: 8,  ms: 600,  vcf: 0 },
-    hard:   { depth: 8, K: 12, ms: 2500, vcf: 10 },
-    boss:   { depth: 12, K: 18, ms: 3500, vcf: 16, def: true }, // 원준: deeper/wider than hard + explicit defense (open fours, random fork kind)
+    hard:   { depth: 4, K: 12, ms: 800,  vcf: 4 },   // measured (tests/duel.js, 80 games): beats normal 64%; boss beats this 77% (31-9 of 40)
+    boss:   { depth: 10, K: 12, ms: 3500, vcf: 16, vctD: 6, def: true }, // 원준: deepest search + VCF/VCT + explicit defense (self-play: beats the old hard 6-2 / 7-1)
   };
 
   const inside = (r, c) => r >= 0 && r < N && c >= 0 && c < N;
@@ -142,6 +142,88 @@
     }
     return null;
   }
+  // ── VCT: threat-space search (fours + open threes) ────────────────────────
+  // open-four cells for p on the 4 lines through (r,c) (empty cells where p would make an open four)
+  function openFourNear(b, p, r, c) {
+    const out = [];
+    for (const [dr, dc] of DIRS) for (let k = -4; k <= 4; k++) {
+      const x = r + dr * k, y = c + dc * k;
+      if (!inside(x, y) || b[x][y]) continue;
+      b[x][y] = p;
+      const u = run(b, x, y, dr, dc, p);
+      const lr = x + dr * (u.lo - 1), lc = y + dc * (u.lo - 1), hr = x + dr * (u.hi + 1), hc = y + dc * (u.hi + 1);
+      const open = u.n === 4 && inside(lr, lc) && !b[lr][lc] && inside(hr, hc) && !b[hr][hc];
+      b[x][y] = 0;
+      if (open && !(p === 1 && koreanBlack && forbidden(b, x, y))) out.push([x, y]);
+    }
+    return out;
+  }
+  function nearCells(b) {
+    const seen = new Uint8Array(N * N), out = [];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (b[r][c])
+      for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) {
+        const x = r + i, y = c + j;
+        if (inside(x, y) && !b[x][y] && !seen[x * N + y]) { seen[x * N + y] = 1; out.push([x, y]); }
+      }
+    return out;
+  }
+  // can p force a win with fours and open threes? Defender replies to a three = cells on its lines that leave no open four.
+  // defender counter-fours are checked too (each forces a block, then p must still win).
+  function vct(b, p, d, dl) {
+    if (d <= 0 || Date.now() > dl.t) return null;
+    const q = 3 - p, rule = koreanBlack && p === 1, qrule = koreanBlack && q === 1;
+    const now = anyFive(b, p, rule);
+    if (now) return { row: now[0], col: now[1] };
+    if (anyFive(b, q, qrule)) return null;
+    for (const [r, c] of fourCells(b, p)) {
+      if (rule && forbidden(b, r, c)) continue;
+      b[r][c] = p;
+      const f = fiveCells(b, r, c, p, rule);
+      let win = f.length >= 2;
+      if (!win && f.length === 1) {
+        const [fr, fc] = f[0];
+        b[fr][fc] = q;
+        win = !made5(b, fr, fc, q, qrule) && !!vct(b, p, d - 1, dl);
+        b[fr][fc] = 0;
+      }
+      b[r][c] = 0;
+      if (win) return { row: r, col: c };
+    }
+    for (const [r, c] of nearCells(b)) {
+      if (Date.now() > dl.t) return null;
+      if (rule && forbidden(b, r, c)) continue;
+      b[r][c] = p;
+      let win = false;
+      if (openFourNear(b, p, r, c).length) { // it is an open three: every defense must still lose
+        win = true;
+        for (const [dr, dc] of DIRS) for (let k = -4; k <= 4 && win; k++) {
+          const x = r + dr * k, y = c + dc * k;
+          if (!inside(x, y) || b[x][y] || (qrule && forbidden(b, x, y))) continue;
+          b[x][y] = q;
+          if (!openFourNear(b, p, r, c).length && !vct(b, p, d - 1, dl)) win = false; // a reply that stops the open four and survives
+          b[x][y] = 0;
+        }
+        // defender counter-fours: each forces p to block, then p must still win
+        if (win) for (const [x, y] of fourCells(b, q)) {
+          if (qrule && forbidden(b, x, y)) continue;
+          b[x][y] = q;
+          const f = fiveCells(b, x, y, q, qrule);
+          let holds = false;
+          if (f.length >= 2) holds = true; // defender wins outright
+          else if (f.length === 1) {
+            const [fr, fc] = f[0];
+            if (!(rule && forbidden(b, fr, fc))) { b[fr][fc] = p; holds = !made5(b, fr, fc, p, rule) && !vct(b, p, d - 1, dl); b[fr][fc] = 0; }
+          }
+          b[x][y] = 0;
+          if (holds) { win = false; break; }
+        }
+      }
+      b[r][c] = 0;
+      if (win) return { row: r, col: c };
+    }
+    return null;
+  }
+
   // ── defense ───────────────────────────────────────────────────────────────
   // a 5-window through (r,c) with 4 of p's stones and no enemy (a four, open or closed) in direction (dr,dc)
   function hasFour(b, r, c, dr, dc, p) {
@@ -350,16 +432,20 @@
       const q = 3 - p, d0 = { t: Date.now() + MS * 0.5, out: false };
       const w = vcf(b, p, L.vcf, d0);
       if (w) return w;
-      const threat = (pl) => vcf(b, pl, L.vcf, d0);
+      const sub = () => ({ t: Math.min(d0.t, Date.now() + MS * 0.12), out: false }); // each VCT call gets a slice of the budget
+      if (L.vctD) { const w2 = vct(b, p, L.vctD, sub()); if (w2) return w2; }
+      const threat = (pl) => vcf(b, pl, L.vcf, d0) || (L.vctD && vct(b, pl, L.vctD, sub()));
       if (threat(q)) {
         lost = true;
+        const safeMoves = []; // moves that stop the forced win; the search then picks the best of them (not just the first)
         for (const m of candidates(b, p, 30)) {
           if (Date.now() > d0.t) break;
           b[m.row][m.col] = p;
           const safe = !threat(q);
           b[m.row][m.col] = 0;
-          if (safe && Date.now() <= d0.t) return m;
+          if (safe && Date.now() <= d0.t) safeMoves.push(m);
         }
+        if (safeMoves.length) { lost = false; cands = safeMoves.slice(0, KK); }
         if (Date.now() > d0.t) lost = false; // ran out of time: not sure it is lost
       }
     }
@@ -387,7 +473,7 @@
     return lost || rawBest <= -FIVE ? { row: best.row, col: best.col, doomed: true } : best;
   }
 
-  const api = { bestMove, evaluate, forbidden, forkCells, openFourCells, focus, FOCUS_TRIPS, posKey, learn, setMemory, getMemory, predict };
+  const api = { LEVELS, bestMove, evaluate, forbidden, forkCells, openFourCells, vct, focusKind, focus, FOCUS_TRIPS, posKey, learn, setMemory, getMemory, predict };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GomokuAI = api;
 })(typeof window !== 'undefined' ? window : globalThis);
