@@ -269,29 +269,23 @@
   }
   // Defense plan for p vs q, thought through every move:
   //  attack first - if p can make an open four now, no defensive bonus (the search just takes it);
-  //  else bonus for occupying q's open-four cells (strong) and the cells of ONE fork kind (3-3 / 4-4 / 6+; all three would be too strong).
-  //  The kind is re-rolled at random every FOCUS_TRIPS round trips (one trip = AI move + human reply) and held in between.
-  const OPEN4_DEF = 4000, FORK_DEF = 2500, FOCUS_TRIPS = 3;
-  const focus = { round: -1, kind: 0 };
-  function focusKind(b) {
-    const round = Math.floor(b.flat().filter(Boolean).length / (2 * FOCUS_TRIPS));
-    if (round !== focus.round) { focus.round = round; focus.kind = Math.floor(Math.random() * 3); }
-    return focus.kind;
-  }
+  //  else bonus for occupying q's open-four cells (strong) and every fork cell of all three kinds (3-3, 4-4, 6+).
+  const OPEN4_DEF = 4000, FORK_DEF = 2500;
   function defense(b, p, q) {
     const bonus = new Map();
     if (openFourCells(b, p).length) return bonus;
     const add = (cells, v) => cells.forEach(([r, c]) => { if (!(koreanBlack && p === 1 && forbidden(b, r, c))) bonus.set(r * N + c, Math.max(bonus.get(r * N + c) || 0, v)); });
     add(openFourCells(b, q), OPEN4_DEF);
-    add(forkCells(b, q, focusKind(b)), FORK_DEF);
+    for (let kind = 0; kind < 3; kind++) add(forkCells(b, q, kind), FORK_DEF);
     return bonus;
   }
 
   // ── per-browser learning ──────────────────────────────────────────────────
   // mem.avoid[key] = AI moves (at that position) that preceded a human win; mem.hum[key]["r,c"] = [games, wins] of the human's
   // replies at that position (key = position with the human to move); mem.streak = consecutive human wins.
-  // ponytail: exact-position matching only (no pattern generalization), capped at CAP keys, oldest dropped.
-  const CAP = 1500;
+  // Every game is stored in all 4 rotations (0/90/180/270), so a rotated replay of a known game is recognized too.
+  // ponytail: exact-position matching only (no mirror / pattern generalization), capped at CAP keys, oldest dropped.
+  const CAP = 4000;
   let mem = { avoid: {}, hum: {}, streak: 0 };
   function posKey(b, p) {
     const out = [p];
@@ -301,20 +295,30 @@
   const setMemory = (m) => { mem = { avoid: (m && m.avoid) || {}, hum: (m && m.hum) || {}, streak: (m && m.streak) | 0 }; };
   const getMemory = () => mem;
   const trim = (o) => { const k = Object.keys(o); if (k.length > CAP) for (const x of k.slice(0, k.length - CAP + 200)) delete o[x]; };
-  // history: [{p, row, col, key}] in play order (key = posKey before the move). winner: 1|2|0 (draw).
+  // 90° clockwise rotation of a cell, and of a posKey (tokens re-sorted so it equals posKey of the rotated board)
+  const rot = (r, c) => [c, N - 1 - r];
+  function rotKey(key) {
+    const [p, ...s] = key.split(',');
+    const t = s.map(x => { const i = parseInt(x.slice(0, -1), 36), [r, c] = rot((i / N) | 0, i % N); return [r * N + c, x.slice(-1)]; });
+    return [p, ...t.sort((a, b2) => a[0] - b2[0]).map(([i, v]) => i.toString(36) + v)].join(',');
+  }
+  // history: [{p, row, col, key}] in play order (key = posKey before the move). winner: 1|2|0 (draw). One call = one result (streak moves once).
   function learn(history, aiColor, winner) {
     const hw = winner && winner !== aiColor;
-    for (const h of history) {
-      if (h.p === aiColor) continue;
-      const e = (mem.hum[h.key] = mem.hum[h.key] || {}), rc = h.row + ',' + h.col, v = (e[rc] = e[rc] || [0, 0]);
-      v[0]++; if (hw) v[1]++;
+    if (hw) mem.streak++; else if (winner === aiColor) mem.streak = 0;
+    let hs = history;
+    for (let t = 0; t < 4; t++) { // ponytail: a rotation-symmetric position gets counted once per matching rotation; harmless for argmax
+      for (const h of hs) {
+        if (h.p === aiColor) continue;
+        const e = (mem.hum[h.key] = mem.hum[h.key] || {}), rc = h.row + ',' + h.col, v = (e[rc] = e[rc] || [0, 0]);
+        v[0]++; if (hw) v[1]++;
+      }
+      if (hw) { // dodge the AI's last moves; the longer the human's streak, the further back we go
+        const mine = hs.filter(h => h.p === aiColor).slice(-(3 + 2 * Math.min(mem.streak - 1, 3)));
+        for (const h of mine) { const a = (mem.avoid[h.key] = mem.avoid[h.key] || []), rc = h.row + ',' + h.col; if (!a.includes(rc)) a.push(rc); }
+      }
+      hs = hs.map(h => { const [row, col] = rot(h.row, h.col); return { p: h.p, row, col, key: rotKey(h.key) }; });
     }
-    if (hw) {
-      mem.streak++;
-      // dodge the AI's last moves; the longer the human's streak, the further back we go
-      const mine = history.filter(h => h.p === aiColor).slice(-(3 + 2 * Math.min(mem.streak - 1, 3)));
-      for (const h of mine) { const a = (mem.avoid[h.key] = mem.avoid[h.key] || []), rc = h.row + ',' + h.col; if (!a.includes(rc)) a.push(rc); }
-    } else if (winner === aiColor) mem.streak = 0;
     trim(mem.hum); trim(mem.avoid);
   }
   // the human's most likely reply at a position (human to move), preferring ones that won before
@@ -426,7 +430,7 @@
     if (L.def) { // make sure defensive cells are searched even if they rank low
       bonus = defense(b, p, 3 - p);
       let extra = 0;
-      for (const k of bonus.keys()) if (extra < 4 && !cands.some(m => m.row * N + m.col === k)) { cands.push({ row: (k / N) | 0, col: k % N, pri: 0 }); extra++; }
+      for (const k of bonus.keys()) if (extra < 8 &&!cands.some(m => m.row * N + m.col === k)) { cands.push({ row: (k / N) | 0, col: k % N, pri: 0 }); extra++; }
     }
     if (L.vcf) { // forced win for me, or stop the opponent's forced win
       const q = 3 - p, d0 = { t: Date.now() + MS * 0.5, out: false };
@@ -473,7 +477,7 @@
     return lost || rawBest <= -FIVE ? { row: best.row, col: best.col, doomed: true } : best;
   }
 
-  const api = { LEVELS, bestMove, evaluate, forbidden, forkCells, openFourCells, vct, focusKind, focus, FOCUS_TRIPS, posKey, learn, setMemory, getMemory, predict };
+  const api = { LEVELS, bestMove, evaluate, forbidden, forkCells, openFourCells, vct, posKey, rotKey, learn, setMemory, getMemory, predict };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GomokuAI = api;
 })(typeof window !== 'undefined' ? window : globalThis);

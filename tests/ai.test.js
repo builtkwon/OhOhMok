@@ -121,7 +121,7 @@ assert(worst < 3500, "move too slow");
 }
 // boss defense: fork cells, doomed flag, boss occupies a white 3-3 point
 {
-  const { forkCells, openFourCells, focus, FOCUS_TRIPS } = require('../ai.js');
+  const { forkCells, openFourCells } = require('../ai.js');
   const f = empty(); put(f, 2, [[7, 5], [7, 6], [5, 7], [6, 7]]); put(f, 1, [[0, 0], [0, 2], [14, 14], [14, 12]]);
   assert(forkCells(f, 2, 0).some(([r, c]) => r === 7 && c === 7), 'white 3-3 point found');
   assert(forkCells(f, 1, 0).length === 0, 'black has no 3-3 point (forbidden)');
@@ -132,13 +132,27 @@ assert(worst < 3500, "move too slow");
   const d = empty(); put(d, 2, [[7, 5], [7, 6], [7, 7], [7, 8]]); put(d, 1, [[0, 0], [0, 2], [14, 14]]);
   const m = bestMove(d, 1, 'boss');
   assert(m.doomed, 'open four against the boss = doomed');
-  // focus kind is held for FOCUS_TRIPS round trips, then re-rolled: pin it to 3-3, boss takes the point
-  focus.round = Math.floor(8 / (2 * FOCUS_TRIPS)); focus.kind = 0;
-  const r1 = bestMove(f, 1, 'boss');
-  assert(r1.row === 7 && r1.col === 7, `boss should take the white 3-3 point, got ${JSON.stringify(r1)}`);
-  assert(focus.kind === 0, 'kind held within the interval');
-  const { focusKind } = require('../ai.js'), k = new Set(); for (let i = 0; i < 60; i++) { focus.round = -1; k.add(focusKind(f)); }
-  assert(k.size === 3, 're-roll covers all three kinds');
+  // all fork kinds are defended every move (no random focus): boss takes the white 3-3 point, every time
+  for (let i = 0; i < 3; i++) { const r1 = bestMove(f, 1, 'boss'); assert(r1.row === 7 && r1.col === 7, `boss should take the white 3-3 point, got ${JSON.stringify(r1)}`); }
+}
+// rotation memory: a loss is remembered in all 4 rotations (posKey of the rotated board == rotKey of the key)
+{
+  const { rotKey } = require('../ai.js');
+  setMemory(null);
+  const rotB = (b) => b.map((row, r) => row.map((_, c) => b[N - 1 - c][r])); // new[r][c] = old[N-1-c][r]  <=> old (r,c) -> new (c, N-1-r)
+  const b = empty(); put(b, 1, [[7, 7], [6, 8], [3, 4]]); put(b, 2, [[7, 8], [2, 9]]);
+  let k = posKey(b, 2), rb = b;
+  for (let t = 0; t < 4; t++) { rb = rotB(rb); k = rotKey(k); assert(k === posKey(rb, 2), `rotKey matches rotated board (t=${t + 1})`); }
+  const m1 = bestMove(b, 2, 'normal');
+  learn([{ p: 2, row: m1.row, col: m1.col, key: posKey(b, 2) }], 2, 1); // human won
+  assert(getMemory().streak === 1, 'one game = one result, not four');
+  let rb2 = b, mr = [m1.row, m1.col];
+  for (let t = 0; t < 3; t++) {
+    rb2 = rotB(rb2); mr = [mr[1], N - 1 - mr[0]];
+    const m2 = bestMove(rb2, 2, 'normal');
+    assert(!(m2.row === mr[0] && m2.col === mr[1]), `rotated board (${90 * (t + 1)}deg): AI must not repeat the lost move`);
+  }
+  setMemory(null);
 }
 // VCT: finds a winning open-three sequence, not just fours
 {

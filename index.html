@@ -2027,6 +2027,7 @@ function doAiMove() {
 let flipUsed = false;
 async function flipTable() {
   flipUsed = aiThinking = true;
+  aiLearn(humanPlayer); // the flipped game = one AI loss (stored in all 4 rotations), recorded before the animation so leaving mid-flip still counts
   const B = board, wrap = document.querySelector('.board-wrap'), rm = matchMedia('(prefers-reduced-motion: reduce)').matches, rnd = (a) => (Math.random() - 0.5) * 2 * a;
   const say = document.body.appendChild(document.createElement('div'));
   say.innerHTML = '<img src="img/wonjun-rage.jpg" alt="" style="display:block;max-width:80vw;max-height:45vh;border-radius:10px;box-shadow:0 0 40px #c0392b;margin:0 auto 10px"><div>상 엎어!! (╯°□°)╯︵ ┻━┻</div>';
@@ -2040,7 +2041,6 @@ async function flipTable() {
   }
   say.remove();
   if (board !== B || gameMode !== 'ai') { wrap.getAnimations().forEach(a => a.cancel()); return; } // player left mid-flip
-  aiLearn(humanPlayer); // flipped game = AI loss, for learning
   aiPlayer = 1; humanPlayer = 2; // AI always opens the restarted game (black)
   rage = true; updateBadges(); // AI stones = angry photo for this game only
   gameOver = false; currentPlayer = 1;
