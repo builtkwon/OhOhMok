@@ -57,4 +57,26 @@ assert(!T.validSnap({ ...snap, players: [{ id: 1 }] }));
 assert(!T.validSnap({ ...snap, turn: { team: 3, n: {} } }));
 assert.strictEqual(T.cleanName('  hello   world  and more '), 'hello world');
 assert.strictEqual(T.cleanName(null), '');
+// time control
+{
+  const N5 = { k: 'n', main: 300000 }, NO = { k: 'n', main: 0 }, B5 = { k: 'b', per: 5000 };
+  assert(T.validRule(N5) && T.validRule(NO) && T.validRule(B5) && T.validRule({ k: 'b', per: 10000 }));
+  assert(!T.validRule({ k: 'b', per: 7000 }) && !T.validRule({ k: 'n', main: -1 }) && !T.validRule(null));
+  const c = T.clockInit(N5);
+  assert.deepStrictEqual(c, { main: 300000, per: 3 });
+  assert.strictEqual(T.budget(N5, c), 300000 + 3 * 30000);
+  assert.deepStrictEqual(T.spend(N5, c, 1000), { main: 299000, per: 3 }, 'main time');
+  const z = { main: 0, per: 3 };
+  assert.deepStrictEqual(T.spend(N5, z, 29999), z, 'byo-yomi period kept if not used up');
+  assert.deepStrictEqual(T.spend(N5, z, 30000), { main: 0, per: 2 }, 'one period used up');
+  assert.deepStrictEqual(T.spend(N5, { main: 10000, per: 3 }, 75000), { main: 0, per: 1 }, 'main 10s + 2 periods');
+  assert.strictEqual(T.spend(N5, { main: 0, per: 1 }, 30000), null, 'last period gone = lose');
+  assert.strictEqual(T.spend(B5, T.clockInit(B5), 4999) !== null, true);
+  assert.strictEqual(T.spend(B5, T.clockInit(B5), 5000), null, 'blitz: 5s = lose');
+  assert.strictEqual(T.budget(NO, T.clockInit(NO)), Infinity, 'no limit');
+  assert.deepStrictEqual(T.view(N5, { main: 10000, per: 3 }, 4000), { main: 6000 });
+  assert.deepStrictEqual(T.view(N5, { main: 10000, per: 3 }, 45000), { byo: 25000, per: 2 });
+  assert.deepStrictEqual(T.view(B5, T.clockInit(B5), 1200), { byo: 3800, per: 0 });
+  assert(T.validClock(c) && !T.validClock({ main: 1, per: 9 }));
+}
 console.log('team tests passed');

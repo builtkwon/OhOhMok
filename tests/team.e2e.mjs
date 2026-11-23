@@ -3,10 +3,10 @@ import { chromium } from 'playwright';
 const url = new URL('../index.html', import.meta.url).href;
 const b = await chromium.launch({ args: ['--disable-features=WebRtcHideLocalIpsWithMdns'] });
 const ok = (n, c) => { console.log(c ? 'PASS' : 'FAIL', n); if (!c) process.exitCode = 1; };
-const mk = async (name) => {
+const mk = async (name, rule) => {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
   const p = await ctx.newPage(); p.ctx = ctx; p.errs = []; p.on('pageerror', e => p.errs.push(e.message));
-  await p.goto(url); await p.click('.mode-card >> nth=2'); await p.fill('#team-name', name); return p;
+  await p.goto(url); await p.click('#mode-overlay .mode-card >> nth=1'); await p.click(`#rule-overlay .mode-card >> nth=${rule === 'b' ? 1 : 0}`); await p.fill('#team-name', name); return p;
 };
 const join = async (p, code) => { await p.fill('#team-code', code); await p.evaluate(() => teamJoin()); await p.waitForFunction(() => TM && TM.joined, null, { timeout: 20000 }); };
 const players = (p) => p.evaluate(() => TM.players.map(x => `${x.name}:${x.team}:${x.online ? 1 : 0}`).join(','));
@@ -63,5 +63,16 @@ try {
   await A.waitForFunction(() => gameOver && TM.result && TM.result.winner === 1, null, { timeout: 20000 }); ok('wiped team loses', true);
   ok('win overlay names team', await A.waitForFunction(() => document.getElementById('modal-winner').textContent.includes('흑팀 승리'), null, W).then(() => true));
   ok('no page errors', A.errs.length + H.errs.length + B.errs.length + C.errs.length === 0);
+  // 1:1 blitz room (5s): host picks it, guest gets the rule; nobody moves -> black loses on time
+  const X = await mk('Xa', 'b'), Y = await mk('Yu');
+  await X.evaluate(() => teamCreate(1)); await X.waitForFunction(() => TM && TM.joined, null, W);
+  await join(Y, await X.evaluate(() => TM.code)); await X.waitForFunction(() => TM.players.length === 2, null, W);
+  ok('1:1 room can start', await X.evaluate(() => !document.getElementById('team-start').disabled));
+  ok('guest sees room rule', (await Y.textContent('#team-rule')) === '속기전 · 한 수 5초');
+  await X.evaluate(() => teamStart()); await Y.waitForFunction(() => TM.started && CLK, null, W);
+  ok('guest shows blitz clock', /⚡/.test(await Y.textContent('#clock-1')));
+  await Y.waitForFunction(() => gameOver && TM.result && TM.result.winner === 2 && TM.result.reason === 'time', null, { timeout: 15000 }); ok('blitz timeout: black loses', true);
+  ok('loser sees time-out text', await X.waitForFunction(() => document.getElementById('modal-sub').textContent === '시간 초과로 졌습니다.', null, W).then(() => true));
+  ok('no page errors (blitz)', X.errs.length + Y.errs.length === 0);
 } catch (e) { console.error(e); process.exitCode = 1; for (const p of [A, C]) console.log(await p.evaluate(() => JSON.stringify({ role: TM.role, migr: TM.migr, busy: TM.busy, peer: !!TM.peer, conn: !!TM.conn, h: TM.hostId, p: TM.players.map(x => x.name + x.online) })).catch(e => String(e))); }
 await b.close();
