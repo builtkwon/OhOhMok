@@ -127,6 +127,11 @@ assert(worst < 3500, "move too slow");
   assert(forkCells(f, 1, 0).length === 0, 'black has no 3-3 point (forbidden)');
   const g = empty(); put(g, 2, [[7, 4], [7, 5], [7, 6], [4, 7], [5, 7], [6, 7]]);
   assert(forkCells(g, 2, 1).some(([r, c]) => r === 7 && c === 7), 'white 4-4 point found');
+  // 4-3: closed three on a row (blocked left) + two on a column -> (7,7) makes a four and an open three
+  const h = empty(); put(h, 2, [[7, 4], [7, 5], [7, 6], [5, 7], [6, 7]]); put(h, 1, [[7, 3], [0, 0], [14, 14]]);
+  assert(forkCells(h, 2, 3).some(([r, c]) => r === 7 && c === 7), 'white 4-3 point found');
+  const hb = empty(); put(hb, 1, [[7, 4], [7, 5], [7, 6], [5, 7], [6, 7]]); put(hb, 2, [[7, 3], [0, 0], [14, 14]]);
+  assert(forkCells(hb, 1, 3).some(([r, c]) => r === 7 && c === 7), 'black 4-3 point found (legal for black)');
   assert(openFourCells(empty().map((r, i) => (i === 7 ? r.map((_, c) => (c >= 6 && c <= 8 ? 2 : 0)) : r)), 2).length === 2, 'open three -> 2 open-four cells');
   // white open four on board, black cannot stop it: boss flags doomed
   const d = empty(); put(d, 2, [[7, 5], [7, 6], [7, 7], [7, 8]]); put(d, 1, [[0, 0], [0, 2], [14, 14]]);

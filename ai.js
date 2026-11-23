@@ -236,17 +236,21 @@
     }
     return false;
   }
-  // empty cells where q would make 3-3 (kind 0), 4-4 (1) or 6+ (2). Black may not play 3-3 / 6+, so for black only 4-4 counts.
+  // empty cells where q would make 3-3 (kind 0), 4-4 (1), 6+ (2) or 4-3 (3: a four plus an open three on another line).
+  // Black may not play 3-3 / 6+, so for black only 4-4 and (non-forbidden) 4-3 count.
   function forkCells(b, q, kind) {
     const out = [];
-    if (q === 1 && kind !== 1) return out;
+    if (q === 1 && (kind === 0 || kind === 2)) return out;
     for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
       if (b[r][c]) continue;
       b[r][c] = q;
-      let n = 0;
-      for (const [dr, dc] of DIRS) if (kind === 0 ? openThree(b, r, c, dr, dc, q) : kind === 1 ? hasFour(b, r, c, dr, dc, q) : run(b, r, c, dr, dc, q).n > 5) n++;
+      let n = 0, f = 0, t = 0;
+      for (const [dr, dc] of DIRS) {
+        if (kind === 3) { if (hasFour(b, r, c, dr, dc, q)) f++; else if (openThree(b, r, c, dr, dc, q)) t++; }
+        else if (kind === 0 ? openThree(b, r, c, dr, dc, q) : kind === 1 ? hasFour(b, r, c, dr, dc, q) : run(b, r, c, dr, dc, q).n > 5) n++;
+      }
       b[r][c] = 0;
-      if (kind === 2 ? n >= 1 : n >= 2) out.push([r, c]);
+      if (kind === 3 ? f && t && !(q === 1 && forbidden(b, r, c)) : kind === 2 ? n >= 1 : n >= 2) out.push([r, c]);
     }
     return out;
   }
@@ -269,14 +273,14 @@
   }
   // Defense plan for p vs q, thought through every move:
   //  attack first - if p can make an open four now, no defensive bonus (the search just takes it);
-  //  else bonus for occupying q's open-four cells (strong) and every fork cell of all three kinds (3-3, 4-4, 6+).
+  //  else bonus for occupying q's open-four cells (strong) and every fork cell (3-3, 4-4, 6+, 4-3).
   const OPEN4_DEF = 4000, FORK_DEF = 2500;
   function defense(b, p, q) {
     const bonus = new Map();
     if (openFourCells(b, p).length) return bonus;
     const add = (cells, v) => cells.forEach(([r, c]) => { if (!(koreanBlack && p === 1 && forbidden(b, r, c))) bonus.set(r * N + c, Math.max(bonus.get(r * N + c) || 0, v)); });
     add(openFourCells(b, q), OPEN4_DEF);
-    for (let kind = 0; kind < 3; kind++) add(forkCells(b, q, kind), FORK_DEF);
+    for (let kind = 0; kind < 4; kind++) add(forkCells(b, q, kind), FORK_DEF);
     return bonus;
   }
 
