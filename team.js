@@ -53,6 +53,10 @@
       !!m.scores && Number.isInteger(m.scores[1]) && Number.isInteger(m.scores[2]);
   }
 
+  // Photo stone src from peers (docs/profile-stones.md §5). The charset keeps url("...") CSS-injection free.
+  const validAvatar = (s) => typeof s === 'string' && s.length <= 44000 &&
+    /^(https:\/\/lh3\.googleusercontent\.com\/[A-Za-z0-9_\-/=]+|data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+)$/.test(s);
+
   // ── time control ──
   // rule: {k:'n', main:ms} 일반전 (main 0 = no limit; else main time, then BYO_N periods of BYO_MS 초읽기)
   //       {k:'b', per:ms}  속기전 (every move within per ms, else lose)
@@ -78,7 +82,7 @@
   }
   const validClock = (c) => !!c && Number.isFinite(c.main) && c.main >= 0 && Number.isInteger(c.per) && c.per >= 0 && c.per <= BYO_N;
 
-  const api = { MAX_PLAYERS, MAX_TEAM, WIPE_MS, mover, advance, wiped, canPick, canStart, autoTeam, successor, cleanName, validMove, validSnap, BYO_MS, BYO_N, validRule, clockInit, budget, spend, view, validClock };
+  const api = { MAX_PLAYERS, MAX_TEAM, WIPE_MS, mover, advance, wiped, canPick, canStart, autoTeam, successor, cleanName, validMove, validSnap, validAvatar, BYO_MS, BYO_N, validRule, clockInit, budget, spend, view, validClock };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.TeamLogic = api;
 })(typeof window !== 'undefined' ? window : globalThis);
