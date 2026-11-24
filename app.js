@@ -18,23 +18,6 @@ let aiThinking = false;
 // Game mode: 'ai' | 'team' (방 만들기: 1:1 ~ 3:1)
 let gameMode = 'ai';
 
-const stoneImgs = {};
-(function() {
-  const tmpDiv = document.createElement('div');
-  tmpDiv.className = 'stone black-stone';
-  tmpDiv.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px';
-  document.body.appendChild(tmpDiv);
-  const blackBg = getComputedStyle(tmpDiv).backgroundImage;
-  tmpDiv.className = 'stone white-stone';
-  const whiteBg = getComputedStyle(tmpDiv).backgroundImage;
-  document.body.removeChild(tmpDiv);
-  function extractUrl(bg) { return bg.replace(/^url\(["']?/, '').replace(/["']?\)$/, ''); }
-  stoneImgs[1] = extractUrl(blackBg);
-  stoneImgs[2] = extractUrl(whiteBg);
-  document.getElementById('choice-black-img').src = stoneImgs[1];
-  document.getElementById('choice-white-img').src = stoneImgs[2];
-})();
-
 const canvas = document.getElementById('board-canvas');
 const clickCanvas = document.getElementById('board-click');
 const stonesLayer = document.getElementById('stones-layer');

@@ -31,7 +31,7 @@
 - 방 메시지(`type`): `hello`, `team`, `move`, `ping`(G→H) · `snap`, `reject`, `ping`(H→G). 시계는 `snap` 안 `clock`. 형식: [docs/team-mode.md#메시지](../team-mode.md#메시지).
 - 저장 키: localStorage `zestmok-level`, `zestmok-mem-<난이도>`, sessionStorage `zestmok-tid` → `ohohmok-` 전환은 [ADR 0001](../adr/0001-ohohmok-repo-split.md).
 - PeerJS 방 id 접두사 `zestmok-team-`: 바꾸면 ZESTMOK과 방이 갈린다(미정).
-- CSS 변수: `style.css`의 `:root`.
+- CSS 변수: `style.css`의 `:root`. 돌: 색 `--stone-black`/`--stone-white`, 사진 `--stone-black-img`/`--stone-white-img`(기본 없음, [profile-stones.md §1](../profile-stones.md)).
 
 ### 스크립트와 전역
 

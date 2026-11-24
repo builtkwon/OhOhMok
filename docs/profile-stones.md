@@ -3,17 +3,18 @@
 기본 돌에서 특정 인물 사진(`img/stone-black.jpg`, `img/stone-white.jpg`)을 빼고, 누구나 자기 사진을 돌로 쓰게 한다.
 서버 없이 정적 사이트로 동작한다. 로그인은 선택 사항이다.
 
-## 1. 기본 돌 (사진 없음)
+## 1. 기본 돌 (사진 없음) — 반영됨
 
-- `img/stone-black.jpg`, `img/stone-white.jpg`를 삭제한다. 기본 돌은 CSS 그라디언트로 그린다(외부 요청 0).
-- 돌 그림은 CSS 변수 두 개로만 바꾼다. 모든 돌 셀렉터(`.stone`, `.ghost-stone`, `.modal-stone`, `.player-stone`, 돌 선택 버튼)가 이 변수를 쓴다.
+- `img/stone-black.jpg`, `img/stone-white.jpg`는 삭제했다. 기본 돌은 단색이다(외부 요청 0). 입체감은 기존 테두리·그림자 그대로.
+- 색은 기존 `:root` 변수 `--stone-black: #1a1a1a` / `--stone-white: #f5f0e8`(`background-color`). 사진은 **별도 변수** `--stone-black-img` / `--stone-white-img`(`background-image`, `background-size: cover`)라 색 변수의 뜻은 바뀌지 않는다.
+- 모든 돌 셀렉터(`.stone`, `.ghost-stone`, `.modal-stone`, `.player-stone`, 돌 선택 버튼 `.stone-choice-img`)가 `style.css`의 한 규칙으로 두 변수를 쓴다.
   ```css
-  :root { --stone-black: radial-gradient(circle at 35% 30%, #666, #111 60%, #000);
-          --stone-white: radial-gradient(circle at 35% 30%, #fff, #ddd 60%, #bbb); }
-  .stone.black-stone { background-image: var(--stone-black); }
+  .stone.black-stone, .ghost-stone.black-ghost, .modal-stone.black-stone, .player-stone.black, .stone-choice-img.black {
+    background-color: var(--stone-black); background-image: var(--stone-black-img, none);
+  }
   ```
-- 사진을 쓸 때는 JS가 `--stone-black` / `--stone-white`를 `url("...")`로 덮는다. 변수를 지우면 기본 돌로 돌아간다.
-- `stoneImgs`의 `getComputedStyle` URL 추출과 돌 선택 `<img>`는 없앤다. 돌 선택 버튼은 `<div>`로 바꾸고 같은 변수를 쓴다.
+- 사진을 쓸 때는 JS가 `--stone-black-img` / `--stone-white-img`를 `url("...")`로 정한다(`document.documentElement.style.setProperty`). 변수를 지우면 단색 기본 돌로 돌아간다.
+- `stoneImgs`의 `getComputedStyle` URL 추출과 돌 선택 `<img>`는 없앴다. 돌 선택 버튼은 `<div class="stone-choice-img black|white">`이고 같은 변수를 쓴다. 패널 돌(`.player-stone`)의 인라인 사진 스타일도 없앴다.
 - 보스(원준) 사진 규칙(`body.boss-*`, rage, win)은 유지한다. 변수보다 우선한다(`!important` 그대로).
 - `img/og.png`도 인물 사진이 들어 있어 교체한다(§7).
 
@@ -46,7 +47,7 @@
 ## 4. 어디에 누구 사진이 붙나
 
 - **AI 대전**: 내가 고른 색에 내 사진. AI 쪽은 기본 돌(보스면 원준 사진).
-- **방(팀) 모드**: **팀 대표 사진**(각 팀 `TM.players` 순서상 첫 플레이어). 돌 색당 사진 하나라 CSS 변수 두 개로 끝난다.
+- **방(팀) 모드**: **팀 대표 사진**(각 팀 `TM.players` 순서상 첫 플레이어). 돌 색당 사진 하나라 CSS 변수 두 개(`--stone-*-img`)로 끝난다.
   대표가 사진이 없거나 사진이 숨겨지면 기본 돌.
 
 ## 5. 방 프로토콜: `avatar` 메시지
@@ -66,11 +67,11 @@
 
 | 파일 | 담당 | 내용 |
 | --- | --- | --- |
-| `profile.js` | profile-dev | 업로드 리사이즈, 누끼, GIS 지연 로드, JWT 디코드, `ohohmok-profile` 저장, `--stone-*` 적용 |
+| `profile.js` | profile-dev | 업로드 리사이즈, 누끼, GIS 지연 로드, JWT 디코드, `ohohmok-profile` 저장, `--stone-*-img` 적용 |
 | `team.js` / `room.js` | room-dev | `avatar` 메시지, `validAvatar(src)` |
-| `style.css` / `app.js` / `index.html` | ui-dev | 기본 돌 그라디언트, 돌 선택 버튼, 프로필 버튼·메뉴, 사진 숨기기 토글 |
+| `style.css` / `app.js` / `index.html` | ui-dev | 기본 돌(단색), 돌 선택 버튼, 프로필 버튼·메뉴, 사진 숨기기 토글 |
 
-공유 경계(계약): CSS 변수 `--stone-black`/`--stone-white`, 키 `ohohmok-profile`, `avatar` 메시지 모양. 바꾸려면 `TODO-CONTRACT.md`에 제안한다.
+공유 경계(계약): CSS 변수 `--stone-black-img`/`--stone-white-img`(사진, 기본 없음 → 단색 `--stone-black`/`--stone-white`), 키 `ohohmok-profile`, `avatar` 메시지 모양. 바꾸려면 `TODO-CONTRACT.md`에 제안한다.
 
 ## 7. 순서
 
