@@ -2,11 +2,20 @@
 import { chromium } from 'playwright';
 const url = new URL('../index.html', import.meta.url).href;
 const b = await chromium.launch({ args: ['--disable-features=WebRtcHideLocalIpsWithMdns'] });
+const T0 = Date.now(), LOG = []; // peer/migration trace, printed only on failure
 const ok = (n, c) => { console.log(c ? 'PASS' : 'FAIL', n); if (!c) process.exitCode = 1; };
 const mk = async (name, rule) => {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
   const p = await ctx.newPage(); p.ctx = ctx; p.errs = []; p.on('pageerror', e => p.errs.push(e.message));
-  await p.goto(url); await p.click('#mode-overlay .mode-card >> nth=1'); await p.click(`#rule-overlay .mode-card >> nth=${rule === 'b' ? 1 : 0}`); await p.fill('#team-name', name); return p;
+  p.on('console', m => { if (m.text().startsWith('[tm]')) LOG.push(`${((Date.now() - T0) / 1000).toFixed(1)}s ${name} ${m.text().slice(5)}`); });
+  await p.goto(url);
+  await p.evaluate(() => { // trace Peer events and migration steps (diagnostics only)
+    const P0 = window.Peer, L = (...a) => console.log('[tm]', ...a);
+    window.Peer = function (id, o) { const x = new P0(id, o); x.on('open', i => L('open', i)); x.on('error', e => L('error', id || 'guest', e.type)); return x; };
+    const step = window.tmMigrateStep; window.tmMigrateStep = () => { if (TM && TM.migr && !TM.busy) L('step cand=' + (TeamLogic.successor(TM.players, TM.hostId, Math.floor((Date.now() - TM.migr.since) / TM_PICK_MS)) || {}).name); step(); };
+    const tk = window.tmTakeover; window.tmTakeover = () => { L('takeover'); tk(); };
+  });
+  await p.click('#mode-overlay .mode-card >> nth=1'); await p.click(`#rule-overlay .mode-card >> nth=${rule === 'b' ? 1 : 0}`); await p.fill('#team-name', name); return p;
 };
 const join = async (p, code) => { await p.fill('#team-code', code); await p.evaluate(() => teamJoin()); await p.waitForFunction(() => TM && TM.joined, null, { timeout: 20000 }); };
 const players = (p) => p.evaluate(() => TM.players.map(x => `${x.name}:${x.team}:${x.online ? 1 : 0}`).join(','));
@@ -74,5 +83,9 @@ try {
   await Y.waitForFunction(() => gameOver && TM.result && TM.result.winner === 2 && TM.result.reason === 'time', null, { timeout: 15000 }); ok('blitz timeout: black loses', true);
   ok('loser sees time-out text', await X.waitForFunction(() => document.getElementById('modal-sub').textContent === '시간 초과로 졌습니다.', null, W).then(() => true));
   ok('no page errors (blitz)', X.errs.length + Y.errs.length === 0);
-} catch (e) { console.error(e); process.exitCode = 1; for (const p of [A, C]) console.log(await p.evaluate(() => JSON.stringify({ role: TM.role, migr: TM.migr, busy: TM.busy, peer: !!TM.peer, conn: !!TM.conn, h: TM.hostId, p: TM.players.map(x => x.name + x.online) })).catch(e => String(e))); }
+} catch (e) {
+  console.error(e); process.exitCode = 1;
+  for (const p of [H, A, B, C]) console.log(p.isClosed() ? 'closed' : await p.evaluate(() => TM ? JSON.stringify({ name: TM.name, me: TM.me, role: TM.role, joined: TM.joined, migr: TM.migr, busy: TM.busy, peer: !!TM.peer, conn: !!TM.conn, hostId: TM.hostId, p: TM.players.map(x => x.name + x.online) }) : 'TM null').catch(e => String(e)));
+  console.log(LOG.join('\n'));
+}
 await b.close();
