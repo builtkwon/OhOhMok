@@ -42,7 +42,7 @@
 
 - 로그아웃은 `google`만 지운다. 업로드는 "사진 지우기"로만 지운다.
 - 같은 github.io 출처를 ZESTMOK과 공유하므로 모든 새 키는 `ohohmok-`로 시작한다.
-- 기존 `zestmok-*` 키(레벨, AI 학습 `zestmok-mem-*`)는 첫 실행 때 `ohohmok-*`로 한 번 복사한다. 원본은 지우지 않는다(ZESTMOK이 계속 씀).
+- 기존 `zestmok-*` 키(레벨, AI 학습 `zestmok-mem-*`)는 `ohohmok-*` 키가 없을 때 그 키로 복사한다. 원본은 지우지 않는다(ZESTMOK이 계속 씀).
 
 ## 4. 어디에 누구 사진이 붙나
 

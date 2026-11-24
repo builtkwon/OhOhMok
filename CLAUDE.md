@@ -12,7 +12,7 @@
 ## ai.js 동기화 ([ADR 0001](docs/adr/0001-ohohmok-repo-split.md))
 - ai.js 변경은 ZESTMOK에 먼저 들어가고, OhOhMok은 그 ai.js 전용 커밋만 cherry-pick.
 - ZESTMOK main을 통째로 merge하지 않음. OhOhMok에서 ai.js는 동기화로만 수정.
-- localStorage는 ZESTMOK과 같은 출처(`builtkwon.github.io`) → OhOhMok 키는 `ohohmok-` 접두사(옛 AI 학습 데이터는 한 번만 복사).
+- localStorage는 ZESTMOK과 같은 출처(`builtkwon.github.io`) → OhOhMok 키는 `ohohmok-` 접두사(옛 레벨·AI 학습 데이터는 새 키가 없을 때 복사).
 
 ## 테스트
 - `npm test` (AI·방/시계 단위) — 항상
