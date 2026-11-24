@@ -83,7 +83,7 @@
 
 | 항목 | 결정 |
 | --- | --- |
-| Google OAuth 클라이언트 ID | 사용자 발급 대기 (§9) |
+| Google OAuth 클라이언트 ID | `923238134204-skkpl84vtimf60a8s1sl00562tqlr7b9.apps.googleusercontent.com` (발급 완료, §9 절차) |
 | 방 모드 사진 | 팀 대표 사진 |
 | 누끼(MediaPipe) | v1에 넣음, 실패 시 원형 크롭 |
 | 남의 부적절한 사진 | 받는 쪽 숨기기 토글 + 방장 끄기 |
