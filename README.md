@@ -97,7 +97,7 @@ npm run serve   # http://localhost:8080
 ## 테스트
 
 ```sh
-npm test                    # AI 단위 테스트 (Node만 필요)
+npm test                    # AI·방·프로필 단위 테스트 (Node만 필요)
 npm i && npx playwright install chromium
 npm run test:ui             # 브라우저 UI/키보드/모바일 테스트 (로컬)
 npm run test:team           # 4개 브라우저 방 만들기 E2E + 1:1 속기전 (인터넷 필요)
