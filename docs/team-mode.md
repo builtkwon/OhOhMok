@@ -3,7 +3,7 @@
 > 2026-11 변경: 이름이 **방 만들기**로 바뀌고 기존 1:1 온라인 모드는 삭제됨(1:1도 이 방에서). 모드 선택 다음에 [일반전 / 속기전] 단계가 추가됨 — 방장이 정한 시간 규칙(`TM.rule`)을 참가자도 따르고, 시계(`clock: {side, used}`)는 스냅샷에 실려 가며 시간 초과는 방장이 판정(`result.reason = 'time'`). 시계 규칙은 `team.js`의 `spend`/`budget`/`view`.
 > 아래 본문 중 "1:1 온라인은 별도 모드로 유지", "자유룰/금수 없음"은 옛 내용 — 지금은 모든 모드에 한국식 금수 적용.
 
-> v3 변경: 재접속 유예 10초(+화면 카운트다운), 팀 정원 1~3명(3:1 허용), 방장 이탈 시 다음 접속자가 승계. 1:1 온라인은 별도 모드로 유지(팀전과 코드 공유 안 함 — 기존 동작 보호). 구현: `team.js`(순수 로직), `index.html`의 TEAM MODE 블록, 테스트 `tests/team.test.js`·`tests/team.e2e.mjs`.
+> v3 변경: 재접속 유예 10초(+화면 카운트다운), 팀 정원 1~3명(3:1 허용), 방장 이탈 시 다음 접속자가 승계. 1:1 온라인은 별도 모드로 유지(팀전과 코드 공유 안 함 — 기존 동작 보호). 구현: `team.js`(순수 로직), `room.js`(분할 전 `index.html`의 TEAM MODE 블록), 테스트 `tests/team.test.js`·`tests/team.e2e.mjs`.
 > 승계: 방 ID(`zestmok-team-CODE`)를 다음 접속자(입장 순서)가 다시 열고 나머지는 같은 id로 재접속. 승계 직후 15초는 팀 전멸 판정 유예.
 
 ## 규칙
@@ -29,9 +29,9 @@ turn: {team: 1|2, idx: {1: n, 2: n}}        // 팀별 로테이션 포인터
 - `token`(sessionStorage 랜덤값)으로 재접속 시 같은 플레이어 복구.
 
 ## 메시지
-- G→H: `hello {name, token}` · `pick-team {team}` · `move {row,col}` · `restart-req` · `ping`
-- H→G: `welcome {id}` · `lobby {players, started}` · `state {board, turn, lastPlaced, gameOver, winningCells, players}` · `full` · `rejected {reason}` · `ping`
-- 시작 후 신규 입장은 `rejected`(토큰 없는 자는 불가). 게스트 간 직접 통신 없음.
+- G→H: `hello {id, name}`(입장·재접속, `id`=sessionStorage 토큰) · `team {team}`(시작 전 팀 변경) · `move {row, col}` · `ping`
+- H→G: `snap {hostId, players, started, turn, board, scores, gameOver, lastPlaced, winningCells, result, cd, rule, clock}`(변경마다 전체 상태) · `reject {msg}`(정원 초과·시작 후 신규 입장 등, 보내고 연결 닫음) · `ping`
+- 새 판은 방장만 시작(`tmRematch`, 별도 요청 메시지 없음). 게스트 간 직접 통신 없음. 코드: `room.js`의 `tmHostData`(H)·`tmGuestData`(G)
 
 ## 로비 / 방 만들기
 - **방 만들기**: 호스트가 흑/백 선택 → 해당 팀에 자동 배치.
