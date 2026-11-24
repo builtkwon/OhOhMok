@@ -30,9 +30,9 @@ ZESTMOK(https://builtkwon.github.io/ZESTMOK/)은 그대로 서비스하면서, �
 
 ## 영향
 
-- 키 전환·복사 코드는 분할 뒤 구현한다(저장 키는 이음새, TODO-CONTRACT로 반영).
+- 키 전환·복사는 분할 직후 구현했다(`app.js`: 새 키가 없을 때만 복사, `ohohmok-tid`는 세션 토큰이라 복사 없음).
 - ai.js에 OhOhMok 전용 요구가 생기면 ZESTMOK에 먼저 넣는다.
-- PeerJS 방 id 접두사(`zestmok-team-`)를 바꿀지는 미정(바꾸면 두 사이트 방이 갈림).
+- PeerJS 방 id 접두사는 `ohohmok-team-`로 정했다(2026-11-24). 두 사이트의 방은 섞이지 않는다(ZESTMOK 방 코드로 OhOhMok에 못 들어감, 반대도 같음).
 
 ## 재검토 조건
 

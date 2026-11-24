@@ -14,7 +14,7 @@ OhOhMok: 빌드 없는 정적 오목 사이트(ZESTMOK에서 분리). 이 파일
 | reviewer | 없음(읽기 전용) | 독립 리뷰 |
 
 - 소유 밖 파일과 이음새(메시지·저장 키·CSS 변수·DOM id·전역 함수)는 직접 고치지 않고 [TODO-CONTRACT.md](TODO-CONTRACT.md)에 제안한다.
-- 분할(계획 2단계): `index.html`을 `room.js`·`clock.js`·`app.js`·`style.css`로 나누는 일은 integrator 한 명이 순서대로 한다. 동작 변경 금지, 이 기간에는 다른 역할이 착수하지 않는다. 끝나면 위 표대로 소유가 나뉜다.
+- 분할(계획 2단계): `index.html`을 `room.js`·`clock.js`·`app.js`·`style.css`로 나누는 일은 integrator가 마쳤다(브랜치 `refactor/split-default-stones`, 기본 돌 교체·`ohohmok-` 키 포함). 이제 위 표대로 소유가 나뉜다. 모듈 간 전역·DOM id: [docs/rules/README.md#이음새](docs/rules/README.md#이음새).
 
 ## 작업 흐름
 
