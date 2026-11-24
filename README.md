@@ -37,6 +37,7 @@ AI는 대국 결과를 이 브라우저(`localStorage`, 난이도별로 따로)�
 - **같은 수 반복 방지** — 사람이 이기면 AI의 마지막 수들(연승할수록 더 앞쪽까지)을 해당 국면에서 다시 두지 않습니다. 같은 수순으로 두어도 AI가 같은 수로 지지 않습니다.
 - **상대 수 예측** — 국면별로 사람이 둔 수와 그 판의 승패를 기억해, 이미 이겼던 응수로 이어지는 수는 피합니다.
 - **맞춤 난이도** — 사람이 연승하면(최대 3) 탐색 깊이·후보 수가 늘어납니다(깊이 최대 +2, 후보 최대 +6). 제한 시간은 그대로입니다. AI가 이기면 연승 기록이 초기화됩니다.
+- 저장 키는 `ohohmok-level`, `ohohmok-mem-<난이도>`입니다. 같은 주소(`builtkwon.github.io`)의 ZESTMOK에서 쌓은 레벨·학습 기록은 이쪽 키가 없을 때마다 복사해 오고, ZESTMOK 쪽 기록은 지우지 않습니다.
 - 같은 국면(돌 배치와 차례 일치)과 그 판을 **90°·180°·270° 돌린 국면**까지 함께 기억합니다(돌린 판에서 같은 수를 둬도 알아봄, 좌우 대칭은 미포함). 최대 4,000개 국면까지 저장하고 오래된 것부터 지웁니다. 브라우저 데이터를 지우면 초기화됩니다.
 
 `node tests/ladder.js`로 난이도별 상대 전적을 측정할 수 있습니다(느림).
@@ -55,11 +56,12 @@ npm run serve   # http://localhost:8080
 - 방 만들기 → 6자리 코드 공유 → 참가자가 코드 입력. 최대 4명(1:1 ~ 3:1), 방장(호스트)이 판의 기준입니다.
 - 참가자는 수만 보내고, 방장이 차례·범위·빈 칸·금수·시간을 검증한 뒤 전체 상태(스냅샷)를 모두에게 보냅니다. 시계 상태도 스냅샷에 포함됩니다.
 - 방장이 나가면 다음 접속자(입장 순서)가 같은 방 코드를 다시 열어 방장을 승계합니다. 한 팀 전원이 10초 넘게 이탈하면 그 팀 패배.
+- 방 id는 `ohohmok-team-<코드>`라 ZESTMOK(`zestmok-team-`)의 방과 섞이지 않습니다. ZESTMOK에서 만든 방 코드로는 들어갈 수 없습니다.
 - 자세한 설계: [`docs/team-mode.md`](docs/team-mode.md)
 
 ### 연결이 안 되는 경우 (TURN)
 
-같은 망이나 일반 가정용 망은 STUN만으로 연결됩니다. 모바일 데이터, 회사·학교망 등에서 연결이 안 되면 `index.html`의 `ICE_SERVERS`에 TURN 서버를 추가하세요.
+같은 망이나 일반 가정용 망은 STUN만으로 연결됩니다. 모바일 데이터, 회사·학교망 등에서 연결이 안 되면 `room.js`의 `ICE_SERVERS`에 TURN 서버를 추가하세요.
 
 ```js
 {urls: 'turn:YOUR_TURN_HOST:443?transport=tcp', username: 'USER', credential: 'PASS'},
@@ -79,10 +81,14 @@ npm run serve   # http://localhost:8080
 
 | 파일 | 설명 |
 |---|---|
-| `index.html` | UI, 게임 로직, 방 만들기(온라인), 시계 |
+| `index.html` | 화면 마크업. 스크립트를 classic `<script>`로 순서대로 읽음(peerjs → `ai.js` → `team.js` → `clock.js` → `room.js` → `app.js`) |
+| `style.css` | 스타일. 기본 돌은 단색(`--stone-black`/`--stone-white`), 사진 돌은 `--stone-black-img`/`--stone-white-img` |
+| `app.js` | 게임 진행·판·입력·AI 대전·결과 창, 시작(Init) |
+| `room.js` | 방 만들기(온라인, PeerJS 호스트 스타·방장 승계) |
+| `clock.js` | 시계(일반전/속기전 표시·시간 초과) |
 | `ai.js` | AI (패턴 평가 + 알파베타 탐색 + 대국 학습) |
 | `team.js` | 방 규칙(순번, 시작 조건, 방장 승계) + 시간 제한(일반전/속기전) 순수 로직 |
-| `img/` | 돌 이미지, 원준 보스 이미지, 파비콘, 공유용 OG 이미지 |
+| `img/` | 원준 보스 이미지, 파비콘, 공유용 OG 이미지 (기본 돌은 사진 없이 CSS) |
 | `vendor/peerjs.min.js` | PeerJS 1.5.4 (MIT) |
 | `tests/` | 테스트 + AI 측정 도구(`duel.js`, `duel-record.js`, `analyze-losses.js`) |
 | `docs/` | 설계·측정 기록 ([`boss-ai.md`](docs/boss-ai.md): 보스 AI 측정 결과와 검토 대기 안, [`profile-stones.md`](docs/profile-stones.md): 프로필 사진 돌 설계) |

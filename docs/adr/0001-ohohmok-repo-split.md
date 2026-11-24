@@ -21,7 +21,7 @@ ZESTMOK(https://builtkwon.github.io/ZESTMOK/)은 그대로 서비스하면서, �
 ## 결정
 
 - 저장소: ZESTMOK을 씨앗으로 한 새 저장소 `builtkwon/OhOhMok`. ZESTMOK은 계속 서비스.
-- 저장 키: 두 사이트는 같은 `builtkwon.github.io` 출처라 localStorage를 공유한다. OhOhMok은 접두사 `ohohmok-`를 쓴다. 첫 실행 때 한 번만 옛 AI 학습 데이터(`zestmok-mem-*`, `zestmok-level`)를 `ohohmok-`로 복사하고, 옛 키는 지우지 않는다(ZESTMOK이 계속 씀).
+- 저장 키: 두 사이트는 같은 `builtkwon.github.io` 출처라 localStorage를 공유한다. OhOhMok은 접두사 `ohohmok-`를 쓴다. 페이지를 열 때 `ohohmok-` 키가 없는 경우에만 옛 AI 학습 데이터(`zestmok-mem-*`, `zestmok-level`)를 `ohohmok-`로 복사하고, 옛 키는 지우지 않는다(ZESTMOK이 계속 씀).
 - ai.js 동기화(필수):
   - ai.js 변경은 ZESTMOK에 먼저 들어간다(측정 포함, docs/boss-ai.md).
   - OhOhMok은 그 ai.js 전용 커밋만 `git cherry-pick`한다.
@@ -30,9 +30,9 @@ ZESTMOK(https://builtkwon.github.io/ZESTMOK/)은 그대로 서비스하면서, �
 
 ## 영향
 
-- 키 전환·복사 코드는 분할 뒤 구현한다(저장 키는 이음새, TODO-CONTRACT로 반영).
+- 키 전환·복사는 분할 직후 구현했다(`app.js`: 새 키가 없을 때만 복사, `ohohmok-tid`는 세션 토큰이라 복사 없음).
 - ai.js에 OhOhMok 전용 요구가 생기면 ZESTMOK에 먼저 넣는다.
-- PeerJS 방 id 접두사(`zestmok-team-`)를 바꿀지는 미정(바꾸면 두 사이트 방이 갈림).
+- PeerJS 방 id 접두사는 `ohohmok-team-`로 정했다(2026-11-24). 두 사이트의 방은 섞이지 않는다(ZESTMOK 방 코드로 OhOhMok에 못 들어감, 반대도 같음).
 
 ## 재검토 조건
 
