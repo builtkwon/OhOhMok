@@ -28,13 +28,16 @@
 - Google: GIS(Google Identity Services) ID 토큰의 `picture` 클레임을 쓴다. `=s96-c`를 `=s128-c`로 바꿔 쓴다.
   토큰은 서명 검증 없이 payload만 디코드한다. 표시용 사진·이름에만 쓰고 권한 판단에는 쓰지 않는다.
 - GIS 스크립트(`https://accounts.google.com/gsi/client`)는 로그인 버튼을 누를 때만 로드한다. `tests/ui.e2e.mjs`가 외부 요청 0을 검사하기 때문이다.
-- 누끼(배경 제거)는 v1에서 하지 않는다. 원형 크롭만 한다(§8 결정 대기).
+- 누끼(배경 제거)를 v1에 넣는다. MediaPipe Tasks Vision `ImageSegmenter`(selfie segmenter)를 `vendor/mediapipe/`에 넣고, 사진을 정할 때만 지연 로드한다(외부 요청 0 유지).
+  - 예산 3초. 실패·시간 초과·CORS 오염(Google 사진을 canvas에 못 그림)이면 원형 크롭 + 테두리 링으로 대신한다.
+  - 결과는 128px PNG data URL(≤ 32KB)로 `ohohmok-profile`에 캐시한다. 원본이 같으면 다시 돌리지 않는다.
 
 ## 3. 저장 (localStorage, 접두사 `ohohmok-`)
 
 | 키 | 값 |
 | --- | --- |
-| `ohohmok-profile` | `{name, google: {sub, picture} \| null, upload: dataURL \| null}` |
+| `ohohmok-profile` | `{name, google: {sub, picture} \| null, upload: dataURL \| null, matted: {from, png} \| null}` |
+| `ohohmok-hide-avatars` | `true` / 없음 |
 
 - 로그아웃은 `google`만 지운다. 업로드는 "사진 지우기"로만 지운다.
 - 같은 github.io 출처를 ZESTMOK과 공유하므로 모든 새 키는 `ohohmok-`로 시작한다.
@@ -43,8 +46,8 @@
 ## 4. 어디에 누구 사진이 붙나
 
 - **AI 대전**: 내가 고른 색에 내 사진. AI 쪽은 기본 돌(보스면 원준 사진).
-- **방(팀) 모드**: §8 결정 대기. 추천은 **팀 대표 사진**(각 팀 첫 플레이어). 돌 색당 사진 하나라 CSS 변수 두 개로 끝난다.
-  두는 사람별 사진은 칸마다 놓은 사람을 기록해야 해서 보드 상태·snap 메시지가 바뀐다.
+- **방(팀) 모드**: **팀 대표 사진**(각 팀 `TM.players` 순서상 첫 플레이어). 돌 색당 사진 하나라 CSS 변수 두 개로 끝난다.
+  대표가 사진이 없거나 사진이 숨겨지면 기본 돌.
 
 ## 5. 방 프로토콜: `avatar` 메시지
 
@@ -56,12 +59,14 @@
   - `^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$` 이고 길이 ≤ 44,000
   - 통과 못 하면 버리고 기본 돌. 이 문자 집합이라 `url("...")`에 넣어도 CSS 주입이 안 된다.
 - 검증 함수는 `team.js`(순수 로직)에 두고 `tests/team.test.js`로 테스트한다.
+- **방장 끄기**: 방장이 참가자 사진을 끄면 host가 `{type: 'avatar', id, src: null}`을 모두에게 보내고, 그 id의 이후 `avatar`를 무시한다(`players[i].avatarOff = true`, 방이 끝날 때까지).
+- **숨기기 토글**: 받는 쪽 설정 `ohohmok-hide-avatars`(true면 남의 사진을 그리지 않음). 내 사진은 항상 보인다.
 
 ## 6. 파일 배치 (index.html 분리 후)
 
 | 파일 | 담당 | 내용 |
 | --- | --- | --- |
-| `profile.js` | profile-dev | 업로드 리사이즈, GIS 지연 로드, JWT 디코드, `ohohmok-profile` 저장, `--stone-*` 적용 |
+| `profile.js` | profile-dev | 업로드 리사이즈, 누끼, GIS 지연 로드, JWT 디코드, `ohohmok-profile` 저장, `--stone-*` 적용 |
 | `team.js` / `room.js` | room-dev | `avatar` 메시지, `validAvatar(src)` |
 | `style.css` / `app.js` / `index.html` | ui-dev | 기본 돌 그라디언트, 돌 선택 버튼, 프로필 버튼·메뉴, 사진 숨기기 토글 |
 
@@ -74,15 +79,15 @@
 3. 병렬: profile-dev(업로드 먼저, Google은 클라이언트 ID 받은 뒤) / room-dev / ui-dev
 4. 통합, `og.png`·타이틀 교체, README 갱신, 배포
 
-## 8. 결정 대기 (사용자)
+## 8. 결정 (2026-11-24)
 
-| 항목 | 추천 |
+| 항목 | 결정 |
 | --- | --- |
-| Google OAuth 클라이언트 ID | 사용자가 발급 (§9) |
+| Google OAuth 클라이언트 ID | 사용자 발급 대기 (§9) |
 | 방 모드 사진 | 팀 대표 사진 |
-| 누끼(MediaPipe) | v1 제외. 원형 크롭만 |
-| 남의 부적절한 사진 | 받는 쪽 "다른 사람 사진 숨기기" 토글만 (서버가 없어 신고·차단 불가) |
-| `og.png`·페이지 제목 | OhOhMok 이름으로 새로 만듦 |
+| 누끼(MediaPipe) | v1에 넣음, 실패 시 원형 크롭 |
+| 남의 부적절한 사진 | 받는 쪽 숨기기 토글 + 방장 끄기 |
+| `og.png`·페이지 제목 | OhOhMok 이름으로 새로, 인물 사진 없이 |
 
 ## 9. Google 클라이언트 ID 발급 절차
 

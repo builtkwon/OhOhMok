@@ -77,7 +77,7 @@ npm run serve   # http://localhost:8080
 | `img/` | 돌 이미지, 원준 보스 이미지, 파비콘, 공유용 OG 이미지 |
 | `vendor/peerjs.min.js` | PeerJS 1.5.4 (MIT) |
 | `tests/` | 테스트 + AI 측정 도구(`duel.js`, `duel-record.js`, `analyze-losses.js`) |
-| `docs/` | 설계·측정 기록 ([`boss-ai.md`](docs/boss-ai.md): 보스 AI 측정 결과와 검토 대기 안) |
+| `docs/` | 설계·측정 기록 ([`boss-ai.md`](docs/boss-ai.md): 보스 AI 측정 결과와 검토 대기 안, [`profile-stones.md`](docs/profile-stones.md): 프로필 사진 돌 설계) |
 
 ## 테스트
 
