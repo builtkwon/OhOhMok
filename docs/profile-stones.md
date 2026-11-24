@@ -67,11 +67,31 @@
 
 | 파일 | 담당 | 내용 |
 | --- | --- | --- |
-| `profile.js` | profile-dev | 업로드 리사이즈, 누끼, GIS 지연 로드, JWT 디코드, `ohohmok-profile` 저장, `--stone-*-img` 적용 |
+| `profile.js`, `vendor/mediapipe/**` | profile-dev | 업로드 리사이즈, 누끼, GIS 지연 로드, JWT 디코드, `ohohmok-profile` 저장, `--stone-*-img` 적용 |
 | `team.js` / `room.js` | room-dev | `avatar` 메시지, `validAvatar(src)` |
 | `style.css` / `app.js` / `index.html` | ui-dev | 기본 돌(단색), 돌 선택 버튼, 프로필 버튼·메뉴, 사진 숨기기 토글 |
 
 공유 경계(계약): CSS 변수 `--stone-black-img`/`--stone-white-img`(사진, 기본 없음 → 단색 `--stone-black`/`--stone-white`), 키 `ohohmok-profile`, `avatar` 메시지 모양. 바꾸려면 `TODO-CONTRACT.md`에 제안한다.
+
+### 6.1 모듈 사이 API (3단계 병렬 작업의 계약)
+
+`profile.js`는 classic script로 `team.js` 다음, `clock.js` 앞에 로드한다. 전역 `Profile` 하나만 내놓는다.
+
+| API | 설명 | 쓰는 곳 |
+| --- | --- | --- |
+| `Profile.photo()` | 내 사진 src(누끼 PNG > 업로드 > Google) 또는 `null` | app.js, room.js |
+| `Profile.name()` | Google 이름 또는 `null` | app.js(방 이름 기본값) |
+| `Profile.signedIn()` | Google 로그인 여부 | app.js |
+| `Profile.login()` / `Profile.logout()` | GIS 지연 로드 후 로그인 / Google 정보만 삭제 | app.js |
+| `Profile.upload(file)` → `Promise<void>` | 크롭·리사이즈·누끼 후 저장. 실패하면 reject(메시지는 한국어) | app.js |
+| `Profile.clearUpload()` | 업로드 사진 삭제 | app.js |
+| `Profile.hideOthers()` / `Profile.setHideOthers(bool)` | `ohohmok-hide-avatars` 읽기/쓰기 | app.js(토글), room.js(그리기 전 확인) |
+| `Profile.onChange(fn)` | 위 값이 바뀌면 `fn()` 호출 | app.js, room.js |
+| `Profile.setStone(color, src)` | `color` 1=흑, 2=백. `src`가 `null`이면 기본 돌. `--stone-*-img`를 설정 | app.js(AI 대전), room.js(방) |
+
+- 사진 주소 검증 `TeamLogic.validAvatar(src)`는 `team.js`(room-dev)에 둔다. `Profile.setStone`도 이것으로 검사한 뒤 적용한다.
+- AI 대전에서 내 색에 내 사진을 붙이는 일은 app.js(ui-dev), 방에서 팀 대표 사진을 붙이는 일은 room.js(room-dev)가 한다.
+- 병렬 작업 중 다른 역할의 파일이 아직 없으면 위 표대로 있다고 가정하고 짠다. 병합은 integrator가 한다.
 
 ## 7. 순서
 

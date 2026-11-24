@@ -6,8 +6,8 @@ OhOhMok: 빌드 없는 정적 오목 사이트(ZESTMOK에서 분리). 이 파일
 
 | 역할 | 쓰기 가능 | 비고 |
 | --- | --- | --- |
-| profile-dev | `profile.js`, `tests/profile.test.js` | Google 로그인·사진 돌. 설계 [docs/profile-stones.md](docs/profile-stones.md) |
-| room-dev | `room.js`, `team.js`, `clock.js`, `tests/team.test.js`, `tests/team.e2e.mjs`, `vendor/**` | 방 프로토콜·시계·아바타 전달 메시지 |
+| profile-dev | `profile.js`, `tests/profile.test.js`, `vendor/mediapipe/**` | Google 로그인·사진 돌. 설계 [docs/profile-stones.md](docs/profile-stones.md) |
+| room-dev | `room.js`, `team.js`, `clock.js`, `tests/team.test.js`, `tests/team.e2e.mjs`, `vendor/**`(`vendor/mediapipe/**` 제외) | 방 프로토콜·시계·아바타 전달 메시지 |
 | ui-dev | `app.js`, `style.css`, `index.html`, `img/**`, `tests/ui.e2e.mjs` | 화면·입력·레이아웃 |
 | ai-dev | `ai.js`(동기화로만), `tests/ai.test.js`, `tests/duel*.js`, `tests/analyze-losses.js`, `tests/ladder.js`, `docs/boss-ai.md` | [ADR 0001](docs/adr/0001-ohohmok-repo-split.md) 동기화 규칙 |
 | integrator | `AGENTS.md`, `CLAUDE.md`, `README.md`, `TODO-CONTRACT.md`, `docs/**`(boss-ai.md 제외), `.claude/**`, `package.json`, `.gitignore` | 계약 반영·병합. 분할 작업(아래)도 맡음 |
