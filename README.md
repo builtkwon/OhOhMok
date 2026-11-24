@@ -9,7 +9,7 @@
 - **방 만들기** (구 팀전, 1:1 온라인 대전 통합) — 최대 4명(1:1, 2:2, 3:1 등). 방장이 팀을 골라 방을 만들고, 참가자는 로비에서 팀 선택. 팀원이 나가도 계속 진행, 한 팀 전원이 10초 넘게 이탈하면 패배. 방장이 나가면 다음 접속자가 방장 승계
 - 모바일 터치, 키보드 조작(방향키 + Enter/Space), 스크린리더 안내 지원
 
-배포: https://builtkwon.github.io/ZESTMOK/ (GitHub Pages, `main` 브랜치 루트)
+배포: https://builtkwon.github.io/OhOhMok/ (GitHub Pages, `main` 브랜치 루트). [ZESTMOK](https://builtkwon.github.io/ZESTMOK/)에서 분리한 새 버전이며, ZESTMOK은 따로 계속 서비스합니다.
 
 ## AI 난이도
 
@@ -66,6 +66,14 @@ npm run serve   # http://localhost:8080
 ```
 
 정적 페이지이므로 이 값은 공개됩니다. 사용 한도가 있는 무료 TURN 계정을 쓰는 것을 권장합니다.
+
+## Google 로그인 (개발 중)
+
+프로필 사진을 돌로 쓰기 위한 선택 로그인입니다. 설계: [`docs/profile-stones.md`](docs/profile-stones.md)
+
+- OAuth 클라이언트 ID(공개 값): `923238134204-skkpl84vtimf60a8s1sl00562tqlr7b9.apps.googleusercontent.com`
+- 승인된 JavaScript 원본: `https://builtkwon.github.io`, `http://localhost:8080`. 다른 주소에서 테스트하려면 Google Cloud Console에서 원본을 추가해야 합니다.
+- 범위는 기본(`openid`, `email`, `profile`)만 씁니다. 클라이언트 보안 비밀번호는 쓰지 않고 저장소에도 넣지 않습니다.
 
 ## 구성
 
