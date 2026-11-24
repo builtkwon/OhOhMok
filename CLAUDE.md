@@ -1,12 +1,18 @@
-# ZESTMOK — 작업 규칙 (다른 PC/세션 공용)
+# OhOhMok — 작업 규칙 (다른 PC/세션 공용)
 
-정적 사이트(빌드 없음). `index.html` + `ai.js`(AI) + `team.js`(방·시계 순수 로직). 설명은 `README.md`, 설계·측정 기록은 `docs/`.
+정적 사이트(빌드 없음). `index.html` + `ai.js`(AI) + `team.js`(방·시계 순수 로직). ZESTMOK(https://github.com/builtkwon/ZESTMOK)에서 분리한 저장소이고 ZESTMOK은 따로 계속 서비스한다. 설명은 `README.md`, 설계·측정 기록은 `docs/`, 역할·소유·스킬은 [AGENTS.md](AGENTS.md).
 
 ## 워크플로
 - main에서 직접 작업하지 말고 브랜치 → PR → `gh pr merge --merge`(머지 커밋 방식).
 - **머지 전 README 갱신** (기능·규칙·테스트 명령이 바뀌면 반드시).
 - 머지 후 원격 브랜치 삭제 — **원격에는 `main`만 유지**.
-- 배포 = `main` 머지 시 GitHub Pages 자동 반영 (https://builtkwon.github.io/ZESTMOK/). 확인: `gh api repos/builtkwon/ZESTMOK/pages/builds/latest`.
+- 배포 = `main` 머지 시 GitHub Pages 자동 반영 (https://builtkwon.github.io/OhOhMok/). 확인: `gh api repos/builtkwon/OhOhMok/pages/builds/latest`.
+- 역할 사이 이음새(방 메시지·저장 키·CSS 변수·DOM id) 변경은 `TODO-CONTRACT.md`로 제안.
+
+## ai.js 동기화 ([ADR 0001](docs/adr/0001-ohohmok-repo-split.md))
+- ai.js 변경은 ZESTMOK에 먼저 들어가고, OhOhMok은 그 ai.js 전용 커밋만 cherry-pick.
+- ZESTMOK main을 통째로 merge하지 않음. OhOhMok에서 ai.js는 동기화로만 수정.
+- localStorage는 ZESTMOK과 같은 출처(`builtkwon.github.io`) → OhOhMok 키는 `ohohmok-` 접두사(옛 AI 학습 데이터는 한 번만 복사).
 
 ## 테스트
 - `npm test` (AI·방/시계 단위) — 항상

@@ -78,6 +78,7 @@ npm run serve   # http://localhost:8080
 | `vendor/peerjs.min.js` | PeerJS 1.5.4 (MIT) |
 | `tests/` | 테스트 + AI 측정 도구(`duel.js`, `duel-record.js`, `analyze-losses.js`) |
 | `docs/` | 설계·측정 기록 ([`boss-ai.md`](docs/boss-ai.md): 보스 AI 측정 결과와 검토 대기 안) |
+| `AGENTS.md`, `TODO-CONTRACT.md`, `.claude/` | 작업 역할·파일 소유·이음새 제안·에이전트 스킬 (AI 협업용) |
 
 ## 테스트
 
