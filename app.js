@@ -98,7 +98,11 @@ document.addEventListener('keydown', (e) => {
 // AI difficulty
 const LEVEL_NAMES = {easy: '쉬움', normal: '보통', hard: '어려움', boss: 'æ 원준'};
 let aiLevel = 'normal';
-try { const v = localStorage.getItem('zestmok-level'); if (LEVEL_NAMES[v]) aiLevel = v; } catch (e) {}
+// ZESTMOK shares this github.io origin: copy its level/learning to our keys once (only if ours is absent). Old keys stay - ZESTMOK still uses them.
+for (const k of ['level', ...Object.keys(LEVEL_NAMES).map(l => 'mem-' + l)]) {
+  try { const v = localStorage.getItem('zestmok-' + k); if (v !== null && localStorage.getItem('ohohmok-' + k) === null) localStorage.setItem('ohohmok-' + k, v); } catch (e) {} // full/blocked storage: skip that key
+}
+try { const v = localStorage.getItem('ohohmok-level'); if (LEVEL_NAMES[v]) aiLevel = v; } catch (e) {}
 function levelName() { return LEVEL_NAMES[aiLevel]; }
 const aiName = () => aiLevel === 'boss' ? 'æ 원준' : 'ZAIST';
 // boss mode: the AI's stones wear the boss's face (class = which color it plays)
@@ -106,7 +110,7 @@ let rage = false; // set by flipTable, cleared when a new fight starts
 function applyBoss() { document.body.classList.toggle('rage', rage); document.body.classList.toggle('boss-1', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 1); document.body.classList.toggle('boss-2', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 2); }
 function setLevel(l) {
   aiLevel = l;
-  try { localStorage.setItem('zestmok-level', l); } catch (e) {}
+  try { localStorage.setItem('ohohmok-level', l); } catch (e) {}
   document.querySelectorAll('.level-chip[data-level]').forEach(b => b.setAttribute('aria-checked', b.dataset.level === l));
 }
 setLevel(aiLevel);
@@ -236,7 +240,7 @@ const COL_NAMES = 'ABCDEFGHJKLMNOP';
 function coordName(r, c) { return COL_NAMES[c] + (BOARD_SIZE - r); }
 
 // per-browser AI learning (ai.js keeps the model; we persist it per level and feed it finished games)
-const memKey = () => 'zestmok-mem-' + aiLevel;
+const memKey = () => 'ohohmok-mem-' + aiLevel;
 function aiMemLoad() {
   let m = null;
   try { m = JSON.parse(localStorage.getItem(memKey())); } catch (e) {}

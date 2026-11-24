@@ -37,12 +37,12 @@ function setConnStatus(online, text) {
 // Pure rules live in team.js. Host holds the truth and broadcasts a full snapshot on every change.
 // If the host leaves, the next online player (join order) re-opens the same room id and everyone rejoins.
 // ponytail: player id is public in the snapshot (needed for host migration) - fine for a friends' game, not for strangers.
-const TEAM_PREFIX = 'zestmok-team-';
+const TEAM_PREFIX = 'ohohmok-team-';
 const TM_HB = 2000, TM_DEAD = 6000, TM_PICK_MS = 8000, TM_TAKEOVER_WIPE_MS = 15000;
 let TM = null;
 
 function tmSid() {
-  try { let v = sessionStorage.getItem('zestmok-tid'); if (!v) { v = generateCode() + generateCode(); sessionStorage.setItem('zestmok-tid', v); } return v; }
+  try { let v = sessionStorage.getItem('ohohmok-tid'); if (!v) { v = generateCode() + generateCode(); sessionStorage.setItem('ohohmok-tid', v); } return v; }
   catch (e) { return generateCode() + generateCode(); }
 }
 function tmBase(role, code) {
