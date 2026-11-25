@@ -17,6 +17,7 @@ assert.strictEqual(T.mover([P('a', 1, false), P('b', 2)], { team: 1, n: { 1: 0, 
 assert.deepStrictEqual(T.wiped([P('a', 1, false), P('b', 2)]), [1]);
 assert.deepStrictEqual(T.wiped([P('a', 1), P('b', 2)]), []);
 assert.deepStrictEqual(T.wiped([P('a', 1, false), P('b', 2, false)]), [1, 2]);
+assert.strictEqual(T.WIPE_MS, 30000); // grace before a team with nobody online loses
 
 // team limits: 3:1 allowed, 4:0 not; start needs both teams
 const full3 = [P('a', 1), P('b', 1), P('c', 1), P('d', 2)];

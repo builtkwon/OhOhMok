@@ -73,10 +73,11 @@ try {
   ok('state preserved after migration', await C.evaluate(() => board.flat().filter(Boolean).length === 6 && TM.started));
   // new host can still run the game: whoever is to move plays
   const p2 = await mv(10, 10); await A.waitForFunction(() => board[10][10] !== 0, null, W); ok('moves work under new host', true);
-  // white team (Cat only) leaves: 10s countdown, then black wins
+  // white team (Cat only) leaves: 30s countdown (also right after a takeover), then black wins
   await C.ctx.close();
   await A.waitForFunction(() => /초 후 패배/.test(document.getElementById('team-banner').textContent), null, W); ok('countdown shown', true);
-  await A.waitForFunction(() => gameOver && TM.result && TM.result.winner === 1, null, { timeout: 20000 }); ok('wiped team loses', true);
+  ok('wipe grace is 30s', /(2[5-9]|30)초 후 패배/.test(await A.textContent('#team-banner')));
+  await A.waitForFunction(() => gameOver && TM.result && TM.result.winner === 1, null, { timeout: 45000 }); ok('wiped team loses', true);
   ok('win overlay names team', await A.waitForFunction(() => document.getElementById('modal-winner').textContent.includes('흑팀 승리'), null, W).then(() => true));
   ok('no page errors', A.errs.length + H.errs.length + B.errs.length + C.errs.length === 0);
   // 1:1 blitz room (5s): host picks it, guest gets the rule; nobody moves -> black loses on time
@@ -102,12 +103,17 @@ try {
   const asked = (p) => p.waitForFunction(() => !document.getElementById('vote-box').hidden && !document.getElementById('vote-btns').hidden, null, W).then(() => true, () => false);
   const waiting = (p) => p.evaluate(() => !document.getElementById('vote-box').hidden && document.getElementById('vote-btns').hidden);
   const vend = (p, f) => p.waitForFunction(f, null, W).then(() => true, () => false);
+  // the cancel note reaches every client (checked at once: it goes away after 4 s)
+  const noted = (ps, s) => Promise.all(ps.map(p => p.waitForFunction(s => document.getElementById('vote-note').textContent === s + ' — 게임이 계속됩니다!', s, W).then(() => true, () => false))).then(a => a.every(Boolean));
   await start();
-  await Wo.evaluate(() => tmSend({ type: 'vote-start', kind: 'draw' })); await V.waitForTimeout(800);
-  ok('draw offer off-turn ignored', await V.evaluate(() => !TM.vh && !TM.offers.draw[TM.players[1].id]));
-  ok('draw button only for the team to move', await Zu.evaluate(() => !document.getElementById('draw-btn').hidden) && await Wo.evaluate(() => document.getElementById('draw-btn').hidden));
+  // a draw can be offered on any turn: Wo (white) offers on black's turn; Va refuses
+  ok('draw usable off-turn', await Wo.evaluate(() => TM.turn.team === 1 && !document.getElementById('draw-btn').disabled));
+  await Wo.evaluate(() => offerDraw());
+  ok('draw offer off-turn opens a vote', await asked(V) && await V.evaluate(() => TM.vh && TM.vh.from === TM.players[1].id && TM.offers.draw[TM.players[1].id] === 1));
+  await V.click('#vote-btns .btn >> nth=1'); await vend(Zu, () => document.getElementById('vote-box').hidden);
   // 1) draw passes: Zu offers -> Va, Wo, Xe asked at the same time; count 1/4 -> 2/4 -> 3/4 for everyone
   await Zu.evaluate(() => offerDraw());
+  ok('vote box replaces the panel action row (not on the board)', await vend(Zu, () => !document.getElementById('vote-box').hidden && !!document.querySelector('.panel #vote-box') && !document.querySelector('.board-wrap #vote-box') && getComputedStyle(document.getElementById('game-actions')).display === 'none'));
   ok('draw: everyone else asked at once', await asked(V) && await asked(Wo) && await asked(Xe) && await waiting(Zu));
   ok('draw: 동의 1/4 for all', await cnt(V, '1/4') && await cnt(Wo, '1/4') && await cnt(Zu, '1/4') && await cnt(Xe, '1/4'));
   await V.click('#vote-btns .btn >> nth=0');
@@ -115,18 +121,23 @@ try {
   await Xe.click('#vote-btns .btn >> nth=0');
   ok('draw: 동의 3/4, still waiting for Wo', await cnt(Zu, '3/4') && await asked(Wo) && await V.evaluate(() => !gameOver));
   await Wo.click('#vote-btns .btn >> nth=0');
+  ok('action row back after the vote', await vend(Zu, () => document.getElementById('vote-box').hidden && getComputedStyle(document.getElementById('game-actions')).display !== 'none'));
   for (const p of [V, Wo, Zu, Xe]) ok('draw agreed on ' + await p.evaluate(() => TM.name), await vend(p, () => gameOver && TM.result.draw && TM.result.reason === 'agreed' && document.getElementById('modal-sub').textContent.includes('합의 무승부') && document.getElementById('vote-box').hidden));
   await V.evaluate(() => tmRematch()); await V.waitForTimeout(500); await start();
-  ok('offers reset each game', await V.evaluate(() => JSON.stringify(TM.offers) === '{"draw":{},"resign":{}}'));
+  ok('offers reset each game', await V.evaluate(() => JSON.stringify(TM.offers) === '{"draw":{}}'));
   // 2) draw refused by the other team
   await V.evaluate(() => offerDraw()); await asked(Zu); await asked(Xe); await asked(Wo); await Wo.click('#vote-btns .btn >> nth=1'); // one refusal is enough
+  ok('refusal note (who refused) on every client', await noted([V, Wo, Zu, Xe], 'Wo님이 무승부 제안을 거절했습니다'));
   ok('draw refused: cancelled, game goes on', await vend(V, () => !TM.vh && !gameOver && document.getElementById('vote-box').hidden) && await vend(Zu, () => document.getElementById('vote-box').hidden && !gameOver));
   // 3) timeout (shortened) cancels; Va's 2 offers are then used up
   await V.evaluate(() => { TM_VOTE_MS = 1500; offerDraw(); });
   ok('vote shown to guests', await asked(Zu));
   ok('timeout cancels the vote', await vend(V, () => !TM.vh && !gameOver) && await vend(Zu, () => document.getElementById('vote-box').hidden));
-  ok('2 draw offers per player; resign counted apart', await V.evaluate(() => { TM_VOTE_MS = 20000; tmHostVoteStart(TM.me, 'draw'); return !TM.vh && TM.offers.draw[TM.me] === 2 && document.getElementById('draw-btn').hidden && !document.getElementById('resign-btn').disabled; }));
-  // 4) resign vote: Zu resigns, teammate Va agrees -> white wins by resignation
+  ok('timeout note on every client', await noted([V, Wo, Zu, Xe], '응답이 없어 무승부 제안이 취소되었습니다'));
+  ok('2 draw offers per player: button stays, disabled with a reason; resign not limited', await V.evaluate(() => { TM_VOTE_MS = 20000; tmHostVoteStart(TM.me, 'draw'); const d = document.getElementById('draw-btn'), r = document.getElementById('resign-btn');
+    return !TM.vh && TM.offers.draw[TM.me] === 2 && !d.hidden && d.disabled && d.title === '이번 판의 무승부 제안 기회를 모두 썼습니다' && !r.hidden && !r.disabled; }));
+  // 4) resign has no limit: Zu resigns twice, Va refuses both; the 3rd one Va agrees -> white wins by resignation
+  for (let i = 0; i < 2; i++) { await Zu.evaluate(() => resign()); await asked(V); await V.click('#vote-btns .btn >> nth=1'); ok('resign refused #' + (i + 1) + ', note on every client', await noted([V, Wo, Zu, Xe], 'Va님이 항복을 거절했습니다')); }
   await Zu.evaluate(() => resign());
   ok('resign: own team asked only, 동의 1/2', await asked(V) && await cnt(V, '1/2') && await cnt(Wo, '1/2') && await Wo.evaluate(() => document.getElementById('vote-btns').hidden));
   await V.click('#vote-btns .btn >> nth=0');
@@ -136,7 +147,7 @@ try {
   await V.evaluate(() => tmRematch()); await V.waitForTimeout(500); await start();
   await Xe.ctx.close(); await V.waitForFunction(() => TM.players.find(p => p.name === 'Xe').online === false, null, W);
   await Wo.evaluate(() => resign());
-  ok('team of one resigns at once, not counted', await vend(V, () => gameOver && TM.result.winner === 1 && TM.result.reason === 'resign' && !TM.offers.resign[TM.players.find(p => p.name === 'Wo').id]));
+  ok('team of one resigns at once, not counted', await vend(V, () => gameOver && TM.result.winner === 1 && TM.result.reason === 'resign' && !('resign' in TM.offers)));
   // 6) a draw needs the other team: opponent drops mid-vote -> cancelled; nobody of it online at start -> refused
   await V.evaluate(() => tmRematch()); await V.waitForTimeout(500);
   await V.evaluate(() => teamStart()); for (const p of [V, Wo, Zu]) await p.waitForFunction(() => TM.started && !gameOver, null, W);
@@ -144,6 +155,7 @@ try {
   await Zu.click('#vote-btns .btn >> nth=0'); await cnt(V, '2/3');
   await Wo.ctx.close(); await V.waitForFunction(() => !TM.players.find(p => p.name === 'Wo').online, null, W);
   ok('opponent drops mid-vote: cancelled, no draw', await vend(V, () => !TM.vh && !gameOver && !TM.result) && await vend(Zu, () => document.getElementById('vote-box').hidden && !gameOver));
+  ok('left note on the remaining clients', await noted([V, Zu], '참가자가 나가 무승부 제안이 취소되었습니다'));
   await Zu.evaluate(() => offerDraw());
   ok('opponent offline at start: refused with a message', await vend(Zu, () => document.getElementById('turn-text').textContent.includes('접속한 사람이 없어')));
   ok('opponent offline at start: no vote, not counted', await V.evaluate(() => !TM.vh && !gameOver && !TM.offers.draw[TM.players.find(p => p.name === 'Zu').id]));

@@ -1,17 +1,18 @@
 # 팀전 설계 (v3, 구현 완료) → 현재 이름 "방 만들기"
 
 > 2026-11 변경: 이름이 **방 만들기**로 바뀌고 기존 1:1 온라인 모드는 삭제됨(1:1도 이 방에서). 모드 선택 다음에 [일반전 / 속기전] 단계가 추가됨 — 방장이 정한 시간 규칙(`TM.rule`)을 참가자도 따르고, 시계(`clock: {side, used}`)는 스냅샷에 실려 가며 시간 초과는 방장이 판정(`result.reason = 'time'`). 시계 규칙은 `team.js`의 `spend`/`budget`/`view`.
+> 2026-11 변경: 팀 전원 이탈 시 패배까지 유예 10초 → **30초** (`team.js` `WIPE_MS`), 방장 승계 직후 유예도 15초 → 30초 (`room.js` `TM_TAKEOVER_WIPE_MS`).
 > 아래 본문 중 "1:1 온라인은 별도 모드로 유지", "자유룰/금수 없음"은 옛 내용 — 지금은 모든 모드에 한국식 금수 적용.
 
 > v3 변경: 재접속 유예 10초(+화면 카운트다운), 팀 정원 1~3명(3:1 허용), 방장 이탈 시 다음 접속자가 승계. 1:1 온라인은 별도 모드로 유지(팀전과 코드 공유 안 함 — 기존 동작 보호). 구현: `team.js`(순수 로직), `room.js`(분할 전 `index.html`의 TEAM MODE 블록), 테스트 `tests/team.test.js`·`tests/team.e2e.mjs`.
-> 승계: 방 ID(`ohohmok-team-CODE`, ZESTMOK은 `zestmok-team-`)를 다음 접속자(입장 순서)가 다시 열고 나머지는 같은 id로 재접속. 승계 직후 15초는 팀 전멸 판정 유예.
+> 승계: 방 ID(`ohohmok-team-CODE`, ZESTMOK은 `zestmok-team-`)를 다음 접속자(입장 순서)가 다시 열고 나머지는 같은 id로 재접속. 승계 직후 30초는 팀 전멸 판정 유예.
 
 ## 규칙
 - 최대 4명, 2팀(흑/백), 팀당 1~2명. 같은 팀은 같은 색 돌. 자유룰(5목 이상), 렌주/금수 없음.
 - **시작 조건**: 양 팀 모두 1명 이상이면 호스트가 언제든 시작 (4명 안 차도 됨). 1:1, 2:1, 2:2 모두 가능.
 - **수순**: 팀이 흑→백→흑→백 교대. 팀 안에서는 접속 중인 팀원이 순서대로 돌아가며 둠 (흑A, 백A, 흑B, 백B …). 팀원이 1명이면 그 사람이 계속 둠.
 - **이탈**: 팀원이 나가도 게임 계속. 나간 사람은 팀 내 순번에서 건너뜀. 같은 토큰으로 재접속하면 복귀.
-- **패배**: 한 팀의 접속 인원이 0이 되면 그 팀 패배(상대 팀 승리, 전적 +1). 재접속 유예 10초 안에 아무도 못 돌아오면 확정. 유예 중 그 팀 차례면 대기.
+- **패배**: 한 팀의 접속 인원이 0이 되면 그 팀 패배(상대 팀 승리, 전적 +1). 재접속 유예 30초 안에 아무도 못 돌아오면 확정. 유예 중 그 팀 차례면 대기.
 - 승리/무승부/전적은 기존 `checkWin`, `scores[1|2]` 그대로 재사용.
 
 ## 데이터 모델 (호스트 권위)
@@ -30,9 +31,9 @@ turn: {team: 1|2, idx: {1: n, 2: n}}        // 팀별 로테이션 포인터
 
 ## 메시지
 - G→H: `hello {id, name}`(입장·재접속, `id`=sessionStorage 토큰) · `team {team}`(시작 전 팀 변경) · `move {row, col}` · `avatar {src}`(내 사진, hello 직후·사진이 바뀔 때, `src: null`=지움) · `vote-start {kind}` · `vote-reply {ok}` · `ping`
-- H→G: `snap {hostId, players, started, turn, board, scores, gameOver, lastPlaced, winningCells, result, cd, offers, rule, clock}`(변경마다 전체 상태) · `vote {kind, from, ask, yes, ends}` / `vote {kind, from, cancelled: true}` · `reject {msg}`(정원 초과·시작 후 신규 입장 등, 보내고 연결 닫음) · `avatar {id, src}`(사진 전달, 새로 들어온 guest에게는 아는 사진을 한 번씩. `src: null`=지움 또는 방장 끄기) · `ping`
+- H→G: `snap {hostId, players, started, turn, board, scores, gameOver, lastPlaced, winningCells, result, cd, offers, rule, clock}`(변경마다 전체 상태) · `vote {kind, from, ask, yes, ends}` / `vote {kind, from, cancelled: true, why, by}`(`why`: `refused`·`timeout`·`left`·`nofoe`·없음, `by` = 거절한 id) · `reject {msg}`(정원 초과·시작 후 신규 입장 등, 보내고 연결 닫음) · `avatar {id, src}`(사진 전달, 새로 들어온 guest에게는 아는 사진을 한 번씩. `src: null`=지움 또는 방장 끄기) · `ping`
 - `avatar`는 snap에 싣지 않는다(32KB × 4). 방장과 받는 쪽 모두 `TeamLogic.validAvatar`로 검사하고, 사진은 `TM.av[id]`에 둔다. 방장이 끈 사람은 `players[i].avatarOff = true`(snap에 실려 승계 후에도 유지)라 이후 `avatar`를 무시한다(지름길: 시작 전 로비에서 나갔다가 다시 들어오면 새 참가자로 잡혀 꺼짐이 풀린다. 방장이 다시 끄면 된다). 방장은 같은 사진은 다시 보내지 않고, 한 사람당 1초에 한 번만 전달한다(그 사이 바뀐 것은 버림). 나간 사람의 사진은 지운다. 팀 대표 사진·숨기기 규칙: [profile-stones.md §4-5](profile-stones.md).
-- 무승부·항복 투표([draw-resign.md §4](draw-resign.md)): `kind` = `'draw' | 'resign'`. 방장 검증 = 게임 중, 진행 중인 투표 없음, 보낸 사람 `offers[kind][id] < 2`(한 판에 무승부·항복 따로 2번씩, snap `offers = {draw: {id: n}, resign: {id: n}}`로 승계 후에도 유지. 물을 사람이 없는 혼자 팀 항복은 세지 않고 막지도 않음), 무승부는 보낸 사람 팀 차례일 때만. `ask` = 지금 물을 접속자, 한꺼번에(`TeamLogic.voteAsk`: 무승부는 제안자 빼고 모든 접속자, 항복은 제안자 팀, 이미 동의한 사람 제외). 무승부는 상대 팀 중 한 명 이상이 동의해야 통과: 시작할 때 상대 팀 접속자가 없으면 거절(제안자에게만 `vote {cancelled: true, why: 'nofoe'}`, 횟수 안 셈), 투표 중 상대 팀이 모두 끊기면(동의한 사람도 없으면) 취소, `ends` = 남은 ms(20초, `room.js` `TM_VOTE_MS`). 투표 창에는 모두에게 `동의 yes.length/(yes.length+ask.length)`를 보인다(`yes`에 제안자 포함, 답할 때마다 새 `vote`로 갱신). 버튼은 `ask`에 든 사람만. `vote-reply`는 `ask`에 든 사람만 유효, 거절이면 취소. 투표 중 끊긴 사람은 빼고 다시 묻고, 물을 사람이 없으면 통과. 통과 결과는 snap `result`: 항복 `{winner, reason: 'resign'}`, 무승부 `{draw: true, reason: 'agreed'}`. 다른 이유로 게임이 끝나면 `cancelled`. 투표 상태는 방장만 들고 있어, 방장이 나가면 각자 투표 창을 닫는다(취소). 둘 곳 없음 알림은 메시지 없이 각자 snap의 `board`로 계산(`TeamLogic.noMoves`).
+- 무승부·항복 투표([draw-resign.md §4](draw-resign.md)): `kind` = `'draw' | 'resign'`. 방장 검증 = 게임 중, 진행 중인 투표 없음, 무승부는 차례와 상관없이 `offers.draw[id] < 2`일 때만(한 판에 무승부 제안 2번, snap `offers = {draw: {id: n}}`로 승계 후에도 유지, 다 쓰면 버튼 비활성). 항복은 횟수 제한 없음. `ask` = 지금 물을 접속자, 한꺼번에(`TeamLogic.voteAsk`: 무승부는 제안자 빼고 모든 접속자, 항복은 제안자 팀, 이미 동의한 사람 제외). 무승부는 상대 팀 중 한 명 이상이 동의해야 통과: 시작할 때 상대 팀 접속자가 없으면 거절(제안자에게만 `vote {cancelled: true, why: 'nofoe'}`, 횟수 안 셈), 투표 중 상대 팀이 모두 끊기면(동의한 사람도 없으면) 취소, `ends` = 남은 ms(20초, `room.js` `TM_VOTE_MS`). 투표 창에는 모두에게 `동의 yes.length/(yes.length+ask.length)`를 보인다(`yes`에 제안자 포함, 답할 때마다 새 `vote`로 갱신). 버튼은 `ask`에 든 사람만. `vote-reply`는 `ask`에 든 사람만 유효, 거절이면 취소(`why: 'refused', by`). 시간 초과 `why: 'timeout'`, 상대 팀 이탈 `why: 'left'`. 취소 이유는 모든 클라이언트가 4초 알림으로 보인다([draw-resign.md §4](draw-resign.md)). 투표 중 끊긴 사람은 빼고 다시 묻고, 물을 사람이 없으면 통과. 통과 결과는 snap `result`: 항복 `{winner, reason: 'resign'}`, 무승부 `{draw: true, reason: 'agreed'}`. 다른 이유로 게임이 끝나면 `cancelled`. 투표 상태는 방장만 들고 있어, 방장이 나가면 각자 투표 창을 닫는다(취소). 둘 곳 없음 알림은 메시지 없이 각자 snap의 `board`로 계산(`TeamLogic.noMoves`).
 - 새 판은 방장만 시작(`tmRematch`, 별도 요청 메시지 없음). 게스트 간 직접 통신 없음. 코드: `room.js`의 `tmHostData`(H)·`tmGuestData`(G)
 
 ## 로비 / 방 만들기
@@ -70,7 +71,7 @@ turn: {team: 1|2, idx: {1: n, 2: n}}        // 팀별 로테이션 포인터
 - E2E `tests/team.e2e.mjs`(Playwright 4컨텍스트): 방 생성(흑 선택) → 3명 팀 선택 입장 → 3/4에서 시작 → 수 진행 → 한 명 이탈 후 계속 → 팀 전원 이탈 시 패배 표시.
 
 ## 아직 가정한 것
-- 팀 전멸 패배는 10초 유예 후 확정(즉시 아님).
+- 팀 전멸 패배는 30초 유예 후 확정(즉시 아님).
 - 인원 불균형(2v1) 허용.
 - 시작 후 신규 입장 불가(재접속만).
 - 승계 중 모두 끊기면 방이 사라짐. 플레이어 id가 스냅샷에 공개됨(친구끼리 용도).

@@ -1,7 +1,7 @@
 // Room (PvP) + time control: pure logic (no DOM, no network). Tested in tests/team.test.js
 // players: [{id, name, team: 1|2, online}] in join order. turn: {team: 1|2, n: {1: k, 2: k}}
 (function (root) {
-  const MAX_PLAYERS = 4, MAX_TEAM = 3, WIPE_MS = 10000, N = 15;
+  const MAX_PLAYERS = 4, MAX_TEAM = 3, WIPE_MS = 30000, N = 15;
   const members = (ps, t) => ps.filter(p => p.team === t && p.online);
 
   // Who moves now: the team alternates; inside a team, online members rotate.
@@ -99,7 +99,7 @@
   // Vote (kind 'draw' | 'resign'): who to ask now, all at once = online players not yet agreed
   // (draw: everyone, resign: the proposer's team). [] = everyone online agreed.
   // null = a draw the other team can no longer agree to (nobody of it online or agreed): refuse / cancel.
-  const VOTE_MAX = 2; // offers per player per game, per kind
+  const VOTE_MAX = 2; // draw offers per player per game (resign has no limit)
   function voteAsk(ps, kind, fromTeam, yes) {
     const ask = ps.filter(p => p.online && (kind === 'draw' || p.team === fromTeam) && !yes.includes(p.id)).map(p => p.id);
     const foe = ps.some(p => p.team !== fromTeam && (yes.includes(p.id) || ask.includes(p.id)));

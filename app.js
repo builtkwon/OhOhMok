@@ -159,7 +159,7 @@ function updateBadges() {
 
 // ─── BOARD ────────────────────────────────────────────────────
 function initBoard() {
-  aiHist = [];
+  aiHist = []; aiOffers = 0; voteNote('');
   board = Array.from({length: BOARD_SIZE}, () => Array(BOARD_SIZE).fill(0));
   lastPlaced = null; winningCells = [];
   stonesLayer.innerHTML = '';
@@ -293,7 +293,7 @@ function doPlaceStone(row, col, triggerAi) {
 // ─── AI ───────────────────────────────────────────────────────
 function doAiMove() {
   if (gameOver || currentPlayer !== aiPlayer || gameMode !== 'ai') return;
-  aiThinking = true; setAiThinking(true);
+  aiThinking = true; setAiThinking(true); updateTurn(); // updateTurn: disables draw / resign
   setTimeout(()=>{
     const move = GomokuAI.bestMove(board, aiPlayer, aiLevel);
     aiThinking = false; setAiThinking(false);
@@ -368,28 +368,38 @@ function updateTurn(){
   document.getElementById('card-white').classList.toggle('active',currentPlayer===2);
 }
 
-// draw / resign buttons: shown during a game; draw only on my (team's) turn
+// draw / resign buttons: always shown; disabled with the reason as title when unusable.
+// draw on any turn, 2 offers a game (resign: no limit)
+let aiOffers=0;
 function updateActions(stuck){
   const team=gameMode==='team', live=!gameOver&&(!team||!!(TM&&TM.started&&tmMe()));
-  // rooms: one vote at a time, 2 offers per kind each; a solo-team resign (nobody to ask) is never blocked
-  const left=(k)=>!team||(live&&!TM.vote&&((TM.offers[k][TM.me]||0)<TeamLogic.VOTE_MAX||(k==='resign'&&!TeamLogic.voteAsk(TM.players,k,tmMyTeam(),[TM.me]).length)));
+  const used=team?(TM&&TM.offers.draw[TM.me])||0:aiOffers;
+  const busy=team?!!(TM&&TM.vote):aiThinking||flipping; // flipping sets aiThinking too
+  const why=!live?'진행 중인 게임이 없습니다':busy?(team?'투표가 진행 중입니다':'AI가 생각 중입니다'):'';
+  const dwhy=why||(used>=TeamLogic.VOTE_MAX?'이번 판의 무승부 제안 기회를 모두 썼습니다':''); // any turn (AI's turn = AI thinking)
   const draw=document.getElementById('draw-btn'), res=document.getElementById('resign-btn');
-  document.getElementById('game-actions').hidden=!live;
-  draw.hidden=!(live&&left('draw')&&currentPlayer===myStoneColor());
-  draw.classList.toggle('hot',!!stuck);
-  res.disabled=!left('resign')||flipping;
+  draw.disabled=!!dwhy; draw.title=dwhy;
+  draw.classList.toggle('hot',!!stuck&&!dwhy);
+  res.disabled=!!why; res.title=why;
 }
+// short note (vote refused / cancelled), gone after 4 s; '' clears it
+function voteNote(msg){
+  const el=document.getElementById('vote-note');
+  el.textContent=msg; clearTimeout(voteNote.t);
+  if(msg)voteNote.t=setTimeout(()=>{if(el.textContent===msg)el.textContent='';},4000);
+}
+const actOff=(id)=>document.getElementById(id).disabled;
 function offerDraw(){
-  if(gameOver||currentPlayer!==myStoneColor())return;
+  if(gameOver||actOff('draw-btn'))return;
   if(gameMode==='team')return tmVoteStart('draw');
-  if(aiThinking)return;
+  aiOffers++;
   // AI (boss too) takes the draw when it has no open window with 3+ of its stones
-  if(TeamLogic.bestWindow(board,aiPlayer)>2)return flashTurn(aiName()+': 무승부 거절');
+  if(TeamLogic.bestWindow(board,aiPlayer)>2){updateTurn();return voteNote('AI가 무승부를 거절했습니다 — 게임이 계속됩니다!');}
   gameOver=true; aiLearn(0); updateTurn(); clockDraw();
   showDrawOverlay(`합의 무승부 (${aiName()} 수락)`);
 }
 function resign(){
-  if(gameOver||flipping||!confirm('정말 항복할까요?'))return; // not mid table-flip: the flip already learned this game as an AI loss
+  if(gameOver||actOff('resign-btn')||!confirm('정말 항복할까요?'))return; // disabled mid table-flip: the flip already learned this game as an AI loss
   if(gameMode==='team')return tmVoteStart('resign');
   gameOver=true; scores[aiPlayer]++; updateScores(); aiLearn(aiPlayer); updateTurn(); clockDraw(); // learned as an AI win
   announce('항복');

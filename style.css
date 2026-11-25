@@ -220,7 +220,7 @@
     transition: all 0.2s ease;
   }
 
-  .btn:hover {
+  .btn:hover:not(:disabled) {
     background: var(--accent);
     color: var(--bg);
     box-shadow: 0 0 20px rgba(var(--accent-rgb),0.4);
@@ -234,7 +234,7 @@
     font-size: 0.8rem;
   }
 
-  .btn.secondary:hover {
+  .btn.secondary:hover:not(:disabled) {
     background: rgba(var(--accent-rgb),0.1);
     color: var(--text-primary);
     box-shadow: none;
@@ -752,16 +752,21 @@
     header { margin-bottom: 10px; width: 100%; max-width: 480px; text-align: left; position: relative; }
     .header-tools { top: 4px; right: 0; }
     .game-layout { flex-direction: column; align-items: center; gap: 12px; width: 100%; }
-    .panel { width: 100%; max-width: 480px; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; }
+    /* panel grid: player cards stacked left, score + reset right, then note / vote box / action buttons full width */
+    .panel { width: 100%; max-width: 480px; display: grid; grid-template-columns: 1fr 1fr; grid-template-areas: "b s" "w r"; align-items: center; gap: 8px; padding: 10px 12px; }
+    #card-black { grid-area: b; } #card-white { grid-area: w; } .panel .score-section { grid-area: s; } #btn-reset { grid-area: r; }
+    .vote-note, .vote-box, .actions { grid-column: 1 / -1; }
+    .panel .actions { display: flex; gap: 8px; } /* .panel: beats the desktop display: contents below */
+    .actions .btn { letter-spacing: 0; white-space: nowrap; font-size: 0.85rem; padding: 8px 4px; }
+    h1 span { letter-spacing: 0.12em; font-size: 0.85rem; }
     .panel:last-child { display: none; }
     .panel .divider { display: none; }
-    .panel .btn { width: auto; flex: 1 1 40%; padding: 8px; }
-    /* cards get their own row (they squashed to "Z" beside the score and buttons) */
-    .player-card { padding: 8px; flex: 1 1 calc(50% - 8px); min-width: 0; }
+    .panel .btn { width: auto; flex: 1 1 0; padding: 8px; }
+    .player-card { padding: 8px 22px 8px 8px; min-width: 0; } /* right padding: the ▶ turn marker */
     .player-card > div > div { min-width: 0; }
-    .player-name { font-size: 0.9rem; }
-    .player-label { letter-spacing: 0; font-size: 0.62rem; }
-    .score-section { flex: 0 0 auto; }
+    .player-name { font-size: 0.9rem; white-space: normal; overflow-wrap: anywhere; }
+    .player-name .player-badge { white-space: nowrap; letter-spacing: 0; }
+    .player-label { display: none; }
     .panel .btn { min-width: 0; }
     .board-wrap { padding: 12px; }
     .modal, .select-modal, .mode-modal, .room-modal { max-width: calc(100vw - 24px); min-width: 0; padding: 24px 18px; }
@@ -789,14 +794,15 @@
   .pm-msg:empty { display: none; }
 
   /* draw / resign (docs/draw-resign.md) */
-  .game-actions { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
-  .game-actions[hidden], .vote-box[hidden] { display: none; }
-  .game-actions .btn { width: auto; padding: 6px 18px; font-size: 0.85rem; }
-  .game-actions .btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+  .actions { display: contents; } /* desktop: the buttons stay in the panel column */
+  .vote-box[hidden], .vote-box:not([hidden]) + .actions { display: none; } /* a running vote replaces the action row */
+  .panel .btn:disabled { opacity: .4; cursor: not-allowed; } /* hover still shows the title (why) */
   #draw-btn.hot { background: var(--accent); color: var(--bg); animation: drawPulse 1.6s ease-in-out infinite; }
   @keyframes drawPulse { 50% { box-shadow: 0 0 16px rgba(var(--accent-rgb),0.7); } }
   @media (prefers-reduced-motion: reduce) { #draw-btn.hot { animation: none; } }
-  .vote-box { margin: 8px auto 0; max-width: 360px; padding: 10px 12px; text-align: center; font-size: 0.85rem; color: var(--text-primary); border: 1px solid var(--accent); border-radius: 8px; background: rgba(var(--accent-rgb),0.08); }
-  .vote-box .modal-btns { margin-top: 8px; }
-  .vote-box .btn { padding: 6px 18px; }
-  .vote-box .modal-btns[hidden] { display: none; }
+  .vote-box { padding: 10px; text-align: center; font-size: 0.85rem; color: var(--text-primary); border: 1px solid var(--accent); border-radius: 8px; background: rgba(var(--accent-rgb),0.08); }
+  .vote-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .vote-btns .btn { flex: 1 1 0; padding: 8px 4px; letter-spacing: 0; }
+  .vote-btns[hidden] { display: none; }
+  .vote-note { font-size: 0.85rem; color: var(--accent); text-align: center; }
+  .vote-note:empty { display: none; }

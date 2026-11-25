@@ -39,7 +39,7 @@
       </div>
     </div>
   </div>
-  <h1>OhOhMok<span>오목 · GOMOKU</span></h1>
+  <h1>OhOhMok<span>made by builtkwon</span></h1>
 </header>
 
 <div class="game-layout">
@@ -82,8 +82,18 @@
 
     <div class="divider"></div>
 
-    <button class="btn" onclick="newGame()">새 게임</button>
-    <button class="btn secondary" onclick="resetScore()">전적 초기화</button>
+    <!-- cancel note, then the vote box; while a vote runs it replaces the action row (style.css) -->
+    <div class="vote-note" id="vote-note" role="status"></div>
+    <div class="vote-box" id="vote-box" role="group" aria-labelledby="vote-text" hidden>
+      <div id="vote-text"></div>
+      <div class="vote-btns" id="vote-btns"><button type="button" class="btn" onclick="tmVoteReply(true)">동의</button><button type="button" class="btn secondary" onclick="tmVoteReply(false)">거절</button></div>
+    </div>
+    <div class="actions" id="game-actions">
+      <button class="btn" onclick="newGame()">새 게임</button>
+      <button type="button" class="btn" id="draw-btn" onclick="offerDraw()">무승부 제안</button>
+      <button type="button" class="btn secondary" id="resign-btn" onclick="resign()">항복</button>
+    </div>
+    <button class="btn secondary" id="btn-reset" onclick="resetScore()">전적 초기화</button>
   </div>
 
   <!-- Board -->
@@ -98,14 +108,6 @@
     <div class="turn-indicator">
       <div class="turn-dot" id="turn-dot"></div>
       <span id="turn-text" role="status">흑돌 차례</span>
-    </div>
-    <div class="game-actions" id="game-actions" hidden>
-      <button type="button" class="btn" id="draw-btn" onclick="offerDraw()">무승부 제안</button>
-      <button type="button" class="btn secondary" id="resign-btn" onclick="resign()">항복</button>
-    </div>
-    <div class="vote-box" id="vote-box" role="group" aria-labelledby="vote-text" hidden>
-      <div id="vote-text"></div>
-      <div class="modal-btns" id="vote-btns"><button type="button" class="btn" onclick="tmVoteReply(true)">동의</button><button type="button" class="btn secondary" onclick="tmVoteReply(false)">거절</button></div>
     </div>
     <div class="conn-status" id="conn-status" style="display:none"><div class="conn-dot" id="conn-dot"></div><span id="conn-text">연결됨</span></div>
     <div class="room-status err" id="team-banner" role="status" style="text-align:center;margin:6px 0 0"></div>
