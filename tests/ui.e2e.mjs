@@ -65,6 +65,9 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   ok(name+' AI accepts a draw otherwise', await p.evaluate(()=>gameOver&&document.getElementById('modal-winner').textContent==='무승부!'&&document.getElementById('modal-sub').textContent.includes('합의 무승부')&&document.getElementById('game-actions').hidden));
   await setB('empty');
   await p.evaluate(()=>{window.__learn=[];const L=GomokuAI.learn;GomokuAI.learn=(h,a,w)=>{__learn.push([a,w]);L(h,a,w);};aiHist=[{p:1,row:7,col:7,key:GomokuAI.posKey(board,1)}];window.__s2=scores[2];});
+  await p.evaluate(()=>{flipping=true;updateTurn();resign();});
+  ok(name+' no resign during the boss table flip', await p.evaluate(()=>!gameOver&&document.getElementById('resign-btn').disabled&&getComputedStyle(document.getElementById('resign-btn')).opacity==='0.4'));
+  await p.evaluate(()=>{flipping=false;updateTurn();});
   await p.click('#resign-btn'); await p.waitForTimeout(500);
   ok(name+' resign: confirm, loss, learned as an AI win', dialogs.includes('정말 항복할까요?') && await p.evaluate(()=>gameOver&&scores[2]===__s2+1&&JSON.stringify(__learn)==='[[2,2]]'&&document.getElementById('modal-winner').textContent==='항복 패배'));
   await p.evaluate(()=>{scores={1:2,2:0};resetScore()}); ok(name+' confirm on score reset', dialogs.some(m=>m.includes('전적')));

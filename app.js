@@ -304,9 +304,9 @@ function doAiMove() {
 }
 
 // boss about to lose: flips the table once per fight (earthquake -> stones fly, board tips over -> board reassembles empty). Score untouched.
-let flipUsed = false;
+let flipUsed = false, flipping = false;
 async function flipTable() {
-  flipUsed = aiThinking = true;
+  flipUsed = aiThinking = flipping = true; updateTurn(); // updateTurn: disables resign
   aiLearn(humanPlayer); // the flipped game = one AI loss (stored in all 4 rotations), recorded before the animation so leaving mid-flip still counts
   const B = board, wrap = document.querySelector('.board-wrap'), rm = matchMedia('(prefers-reduced-motion: reduce)').matches, rnd = (a) => (Math.random() - 0.5) * 2 * a;
   const say = document.body.appendChild(document.createElement('div'));
@@ -320,14 +320,14 @@ async function flipTable() {
     await wrap.animate([{transform: 'none', opacity: 1}, {transform: 'perspective(900px) rotateX(80deg) translateY(60px)', opacity: 0}], {duration: 900, easing: 'ease-in', fill: 'forwards'}).finished; // board tips over
   }
   say.remove();
-  if (board !== B || gameMode !== 'ai' || gameOver) { wrap.getAnimations().forEach(a => a.cancel()); return; } // player left or resigned mid-flip
+  if (board !== B || gameMode !== 'ai' || gameOver) { flipping = false; wrap.getAnimations().forEach(a => a.cancel()); return; } // player left mid-flip
   aiPlayer = 1; humanPlayer = 2; // AI always opens the restarted game (black)
   rage = true; updateBadges(); // AI stones = angry photo for this game only
   gameOver = false; currentPlayer = 1;
   initBoard(); clockStart(RULE); updateTurn();
   wrap.getAnimations().forEach(a => a.cancel());
   if (!rm) await wrap.animate([{transform: 'perspective(900px) rotateX(-80deg) scale(.8)', opacity: 0}, {transform: 'none', opacity: 1}], {duration: 600, easing: 'cubic-bezier(.34,1.56,.64,1)'}).finished; // reassembles
-  aiThinking = false;
+  aiThinking = flipping = false; updateTurn();
   setTimeout(doAiMove, 300);
 }
 
@@ -371,12 +371,13 @@ function updateTurn(){
 // draw / resign buttons: shown during a game; draw only on my (team's) turn
 function updateActions(stuck){
   const team=gameMode==='team', live=!gameOver&&(!team||!!(TM&&TM.started&&tmMe()));
-  const left=!team||(!!TM&&!TM.vote&&(TM.offers[TM.me]||0)<TeamLogic.VOTE_MAX); // rooms: 2 offers each, one vote at a time
+  // rooms: one vote at a time, 2 offers per kind each; a solo-team resign (nobody to ask) is never blocked
+  const left=(k)=>!team||(live&&!TM.vote&&((TM.offers[k][TM.me]||0)<TeamLogic.VOTE_MAX||(k==='resign'&&!TeamLogic.voteAsk(TM.players,k,tmMyTeam(),[TM.me]).length)));
   const draw=document.getElementById('draw-btn'), res=document.getElementById('resign-btn');
   document.getElementById('game-actions').hidden=!live;
-  draw.hidden=!(live&&left&&currentPlayer===myStoneColor());
+  draw.hidden=!(live&&left('draw')&&currentPlayer===myStoneColor());
   draw.classList.toggle('hot',!!stuck);
-  res.disabled=!left;
+  res.disabled=!left('resign')||flipping;
 }
 function offerDraw(){
   if(gameOver||currentPlayer!==myStoneColor())return;
@@ -388,7 +389,7 @@ function offerDraw(){
   showDrawOverlay(`합의 무승부 (${aiName()} 수락)`);
 }
 function resign(){
-  if(gameOver||!confirm('정말 항복할까요?'))return;
+  if(gameOver||flipping||!confirm('정말 항복할까요?'))return; // not mid table-flip: the flip already learned this game as an AI loss
   if(gameMode==='team')return tmVoteStart('resign');
   gameOver=true; scores[aiPlayer]++; updateScores(); aiLearn(aiPlayer); updateTurn(); clockDraw(); // learned as an AI win
   announce('항복');

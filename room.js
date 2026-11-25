@@ -49,7 +49,7 @@ function tmSid() {
 function tmBase(role, code) {
   return {role, code, me: tmSid(), name: TeamLogic.cleanName(document.getElementById('team-name').value) || 'Player',
     peer: null, conn: null, conns: {}, seen: {}, wipe: {}, until: {}, players: [], started: false, turn: null, result: null,
-    hostId: '', av: {}, offers: {}, vote: null, avAt: {}, stones: '', rule: RULE, lastSeen: Date.now(), hb: null, tick: null, rejoin: null, migr: null, busy: false, joined: false, sig: '', ann: '', endShown: false};
+    hostId: '', av: {}, offers: {draw: {}, resign: {}}, vote: null, avAt: {}, stones: '', rule: RULE, lastSeen: Date.now(), hb: null, tick: null, rejoin: null, migr: null, busy: false, joined: false, sig: '', ann: '', endShown: false};
 }
 const tmMe = () => TM && TM.players.find(p => p.id === TM.me);
 const tmMyTeam = () => { const m = tmMe(); return m ? m.team : 1; };
@@ -222,7 +222,7 @@ function tmAvatarOff(id) {
 function tmHostStart() {
   if (TM.started || !TeamLogic.canStart(TM.players).ok) return;
   initBoard(); gameOver = false;
-  TM.started = true; TM.result = null; TM.turn = {team: 1, n: {1: 0, 2: 0}}; TM.offers = {};
+  TM.started = true; TM.result = null; TM.turn = {team: 1, n: {1: 0, 2: 0}}; TM.offers = {draw: {}, resign: {}};
   clockStart(TM.rule);
   tmBroadcast();
 }
@@ -277,9 +277,14 @@ function tmWipeFire(t) {
 let TM_VOTE_MS = 20000; // let: the e2e test shortens it
 function tmHostVoteStart(id, kind) {
   const p = TM.players.find(x => x.id === id);
-  if (!p || !TM.started || gameOver || TM.vh || (kind !== 'draw' && kind !== 'resign') || (TM.offers[id] || 0) >= TeamLogic.VOTE_MAX ||
-    (kind === 'draw' && TM.turn.team !== p.team)) return;
-  TM.offers[id] = (TM.offers[id] || 0) + 1;
+  if (!p || !TM.started || gameOver || TM.vh || (kind !== 'draw' && kind !== 'resign') || (kind === 'draw' && TM.turn.team !== p.team)) return;
+  const ask = TeamLogic.voteAsk(TM.players, kind, p.team, [id]), used = TM.offers[kind][id] || 0;
+  if (!ask) { // nobody of the other team online: it cannot agree
+    const m = {type: 'vote', kind, from: id, cancelled: true, why: 'nofoe'};
+    if (id === TM.me) tmVoteView(m); else { try { TM.conns[id].send(m); } catch (e) {} }
+    return;
+  }
+  if (ask.length) { if (used >= TeamLogic.VOTE_MAX) return; TM.offers[kind][id] = used + 1; } // a solo-team resign is not counted
   TM.vh = {kind, from: id, team: p.team, yes: [id], ask: [], ends: Date.now() + TM_VOTE_MS, timer: setTimeout(() => tmVoteEnd(false), TM_VOTE_MS)};
   tmBroadcast(); // offers count
   tmVoteCheck();
@@ -294,8 +299,10 @@ function tmHostVoteReply(id, ok) {
 function tmVoteCheck() {
   const V = TM.vh;
   if (!V) return;
-  V.ask = TeamLogic.voteAsk(TM.players, V.kind, V.team, V.yes);
-  if (!V.ask.length) return tmVoteEnd(true);
+  const ask = TeamLogic.voteAsk(TM.players, V.kind, V.team, V.yes);
+  if (!ask) return tmVoteEnd(false); // the other team left mid-vote
+  V.ask = ask;
+  if (!ask.length) return tmVoteEnd(true);
   tmVoteMsg({type: 'vote', kind: V.kind, from: V.from, ask: V.ask, yes: V.yes, ends: V.ends - Date.now()});
 }
 function tmVoteEnd(passed) {
@@ -316,7 +323,7 @@ function tmVoteMsg(m) {
 function tmVoteView(d) {
   if (d.cancelled) {
     TM.vote = null; tmVoteSet();
-    return flashTurn((d.kind === 'draw' ? '무승부' : '항복') + ' 제안이 취소되었습니다');
+    return flashTurn(d.why === 'nofoe' ? '상대 팀에 접속한 사람이 없어 무승부를 제안할 수 없습니다' : (d.kind === 'draw' ? '무승부' : '항복') + ' 제안이 취소되었습니다');
   }
   if ((d.kind !== 'draw' && d.kind !== 'resign') || typeof d.from !== 'string' || !Array.isArray(d.ask) || !Array.isArray(d.yes) || !Number.isFinite(d.ends)) return;
   const str = (a) => a.filter(x => typeof x === 'string');
@@ -429,7 +436,8 @@ function tmGuestData(d) {
   TM.players = d.players; TM.started = d.started; TM.turn = d.turn; TM.hostId = d.hostId;
   const r = d.result;
   TM.result = r && typeof r === 'object' ? {winner: r.winner === 1 || r.winner === 2 ? r.winner : 0, reason: ['wipe', 'time', 'resign', 'agreed'].includes(r.reason) ? r.reason : 'five', draw: !!r.draw, void: !!r.void} : null;
-  TM.offers = d.offers && typeof d.offers === 'object' ? Object.fromEntries(Object.entries(d.offers).filter(([, v]) => Number.isInteger(v))) : {};
+  const cnt = (o) => o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).filter(([, v]) => Number.isInteger(v))) : {};
+  TM.offers = {draw: cnt(d.offers && d.offers.draw), resign: cnt(d.offers && d.offers.resign)};
   TM.until = {};
   (Array.isArray(d.cd) ? d.cd : []).forEach(x => { if ((x.team === 1 || x.team === 2) && Number.isFinite(x.ms)) TM.until[x.team] = Date.now() + x.ms; });
   board = d.board; scores = {1: d.scores[1], 2: d.scores[2]}; gameOver = !!d.gameOver;

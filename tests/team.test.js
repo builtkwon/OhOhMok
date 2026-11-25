@@ -126,6 +126,12 @@ assert.strictEqual(T.cleanName(null), '');
   assert.deepStrictEqual(T.voteAsk([P('a', 1), P('b', 2)], 'resign', 1, ['a']), [], 'alone on the team: passes at once');
   assert.deepStrictEqual(T.voteAsk([P('a', 1), P('b', 2)], 'draw', 1, ['a']), ['b']);
   assert.deepStrictEqual(T.voteAsk([P('a', 1), P('c', 1, false), P('b', 2)], 'draw', 1, ['a']), ['b'], 'offline teammate skipped');
+  // a draw needs the other team's consent: nobody of it online and nobody of it agreed -> null (refuse / cancel)
+  assert.strictEqual(T.voteAsk([P('a', 1), P('b', 2, false)], 'draw', 1, ['a']), null, '1:1, opponent offline at start');
+  assert.strictEqual(T.voteAsk([P('a', 1), P('c', 1), P('b', 2, false)], 'draw', 1, ['a', 'c']), null, 'opponent dropped mid-vote');
+  assert.strictEqual(T.voteAsk([P('a', 1), P('c', 1, false), P('b', 2, false), P('d', 2, false)], 'draw', 1, ['a']), null, 'after a takeover everyone else is offline');
+  assert.deepStrictEqual(T.voteAsk([P('a', 1), P('b', 2, false), P('d', 2)], 'draw', 1, ['a', 'd']), [], 'one opponent agreed, the other left: passes');
+  assert.deepStrictEqual(T.voteAsk([P('a', 1), P('b', 2, false)], 'resign', 1, ['a']), [], 'resign needs no opponent');
   assert.strictEqual(T.VOTE_MAX, 2);
 }
 console.log('team tests passed');
