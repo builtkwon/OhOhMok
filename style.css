@@ -756,7 +756,7 @@
     .panel { width: 100%; max-width: 480px; display: grid; grid-template-columns: 1fr 1fr; grid-template-areas: "b s" "w r"; align-items: center; gap: 8px; padding: 10px 12px; }
     #card-black { grid-area: b; } #card-white { grid-area: w; } .panel .score-section { grid-area: s; } #btn-reset { grid-area: r; }
     .vote-note, .vote-box, .actions { grid-column: 1 / -1; }
-    .actions { display: flex; gap: 8px; }
+    .panel .actions { display: flex; gap: 8px; } /* .panel: beats the desktop display: contents below */
     .actions .btn { letter-spacing: 0; white-space: nowrap; font-size: 0.85rem; padding: 8px 4px; }
     h1 span { letter-spacing: 0.12em; font-size: 0.85rem; }
     .panel:last-child { display: none; }

@@ -42,7 +42,8 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
     [Profile.signedIn,Profile.name]=s;updateBadges();updateTurn();return r;}));
   ok(name+' draw + resign usable on my turn', await p.evaluate(()=>['draw-btn','resign-btn'].every(id=>{const b=document.getElementById(id);return !b.hidden&&!b.disabled;})));
   ok(name+' action row in the panel (mobile: below the cards), no horizontal scroll', await p.evaluate(m=>{const r=(id)=>document.getElementById(id).getBoundingClientRect(),d=r('draw-btn');
-    return !!document.querySelector('.panel #game-actions #draw-btn')&&document.documentElement.scrollWidth<=innerWidth&&d.right<=innerWidth&&(!m||d.top>=r('card-white').bottom&&r('resign-btn').right<=r('btn-reset').right+1);},name==='mobile'));
+    return !!document.querySelector('.panel #game-actions #draw-btn')&&document.documentElement.scrollWidth<=innerWidth&&d.right<=innerWidth&&(!m||d.top>=r('card-white').bottom&&r('resign-btn').top===d.top&&r('resign-btn').right<=r('btn-reset').right+1);},name==='mobile'));
+  ok(name+' header subtitle', (await p.textContent('h1 span'))==='made by builtkwon');
   await p.focus('#board-click'); await p.keyboard.press('Tab').catch(()=>{}); await p.focus('#board-click');
   await p.keyboard.press('ArrowLeft'); await p.keyboard.press('ArrowUp'); await p.keyboard.press('Enter');
   await p.waitForTimeout(1500);
