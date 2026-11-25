@@ -28,9 +28,10 @@
   32KB(base64 길이 ≤ 44,000자)를 넘으면 품질을 0.8 → 0.6 → 0.4로 낮춘다. 그래도 넘으면 거절한다.
 - Google: GIS(Google Identity Services) ID 토큰의 `picture` 클레임을 쓴다. `=s96-c`를 `=s128-c`로 바꿔 쓴다.
   토큰은 서명 검증 없이 payload만 디코드한다. 표시용 사진·이름에만 쓰고 권한 판단에는 쓰지 않는다.
-- GIS 스크립트(`https://accounts.google.com/gsi/client`)는 로그인 버튼을 누를 때만 로드한다. `tests/ui.e2e.mjs`가 외부 요청 0을 검사하기 때문이다.
+- GIS 스크립트(`https://accounts.google.com/gsi/client`)는 프로필 메뉴를 처음 열 때만 로드한다(공식 버튼, `Profile.renderButton`). `tests/ui.e2e.mjs`가 외부 요청 0을 검사하기 때문이다.
 - 누끼(배경 제거)를 v1에 넣는다. MediaPipe Tasks Vision `ImageSegmenter`(selfie segmenter)를 `vendor/mediapipe/`에 넣고, 사진을 정할 때만 지연 로드한다(외부 요청 0 유지).
-  - 예산 3초. 실패·시간 초과·CORS 오염(Google 사진을 canvas에 못 그림)이면 원형 크롭 + 테두리 링으로 대신한다.
+  - 예산 3초. 실패·시간 초과·CORS 오염(Google 사진을 canvas에 못 그림)이면 누끼 없이 크롭한 사진 그대로 쓴다. 늦게 끝난 누끼는 원본이 그대로면 저장하고 돌을 바꾼다(`onChange`).
+  - MediaPipe 1.2.2는 약 60초마다 `https://odml.pa.googleapis.com/v1/log`로 사용 기록을 보내려 한다. CSP가 막아서 밖으로 나가지 않는다(콘솔에 CSP 위반 1건). **`connect-src`에 절대 추가하지 않는다.**
   - 결과는 128px PNG data URL(≤ 32KB)로 `ohohmok-profile`에 캐시한다. 원본이 같으면 다시 돌리지 않는다.
 
 ## 3. 저장 (localStorage, 접두사 `ohohmok-`)
@@ -40,7 +41,8 @@
 | `ohohmok-profile` | `{name, google: {sub, picture} \| null, upload: dataURL \| null, matted: {from, png} \| null}` |
 | `ohohmok-hide-avatars` | `true` / 없음 |
 
-- 로그아웃은 `google`만 지운다. 업로드는 "사진 지우기"로만 지운다.
+- 로그아웃은 `google`·`name`(Google 이름)과 Google 사진의 누끼를 지운다. 업로드는 "사진 지우기"로만 지운다.
+- 저장에 실패하면(공간 부족) `upload`는 "저장 공간이 부족합니다"로 reject한다. 사진은 그 탭에서만 쓰인다.
 - 같은 github.io 출처를 ZESTMOK과 공유하므로 모든 새 키는 `ohohmok-`로 시작한다.
 - 기존 `zestmok-*` 키(레벨, AI 학습 `zestmok-mem-*`)는 `ohohmok-*` 키가 없을 때 그 키로 복사한다. 원본은 지우지 않는다(ZESTMOK이 계속 씀).
 
@@ -82,14 +84,15 @@
 | `Profile.photo()` | 내 사진 src(누끼 PNG > 업로드 > Google) 또는 `null` | app.js, room.js |
 | `Profile.name()` | Google 이름 또는 `null` | app.js(방 이름 기본값) |
 | `Profile.signedIn()` | Google 로그인 여부 | app.js |
-| `Profile.login()` / `Profile.logout()` | GIS 지연 로드 후 로그인 / Google 정보만 삭제 | app.js |
+| `Profile.renderButton(el)` → `Promise` | GIS 지연 로드 후 공식 Google 버튼을 `el`에 그림. 로그인하면 `onChange`만 호출 | app.js(메뉴를 처음 열 때) |
+| `Profile.login()` / `Profile.logout()` | One Tap 로그인(버튼을 못 불러올 때만) / Google 정보 삭제(§3) | app.js |
 | `Profile.upload(file)` → `Promise<void>` | 크롭·리사이즈·누끼 후 저장. 실패하면 reject(메시지는 한국어) | app.js |
-| `Profile.clearUpload()` | 업로드 사진 삭제 | app.js |
+| `Profile.clearUpload()` / `Profile.hasUpload()` | 업로드 사진 삭제 / 업로드가 있는지 | app.js |
 | `Profile.hideOthers()` / `Profile.setHideOthers(bool)` | `ohohmok-hide-avatars` 읽기/쓰기 | app.js(토글), room.js(그리기 전 확인) |
 | `Profile.onChange(fn)` | 위 값이 바뀌면 `fn()` 호출 | app.js, room.js |
 | `Profile.setStone(color, src)` | `color` 1=흑, 2=백. `src`가 `null`이면 기본 돌. `--stone-*-img`를 설정 | app.js(AI 대전), room.js(방) |
 
-- 사진 주소 검증 `TeamLogic.validAvatar(src)`는 `team.js`(room-dev)에 둔다. `Profile.setStone`도 이것으로 검사한 뒤 적용한다.
+- 사진 주소 검증은 `TeamLogic.validAvatar(src)`(`team.js`) 하나뿐이다. `profile.js`도 이것을 쓴다(그래서 `team.js` 다음에 로드).
 - AI 대전에서 내 색에 내 사진을 붙이는 일은 app.js(ui-dev), 방에서 팀 대표 사진을 붙이는 일은 room.js(room-dev)가 한다.
 - 병렬 작업 중 다른 역할의 파일이 아직 없으면 위 표대로 있다고 가정하고 짠다. 병합은 integrator가 한다.
 
@@ -106,7 +109,7 @@
 | --- | --- |
 | Google OAuth 클라이언트 ID | `923238134204-skkpl84vtimf60a8s1sl00562tqlr7b9.apps.googleusercontent.com` (발급 완료, §9 절차) |
 | 방 모드 사진 | 팀 대표 사진 |
-| 누끼(MediaPipe) | v1에 넣음, 실패 시 원형 크롭 |
+| 누끼(MediaPipe) | v1에 넣음, 실패 시 크롭한 사진 그대로 |
 | 남의 부적절한 사진 | 받는 쪽 숨기기 토글 + 방장 끄기 |
 | `og.png`·페이지 제목 | OhOhMok 이름으로 새로, 인물 사진 없이 |
 

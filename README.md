@@ -1,12 +1,13 @@
-# ZESTMOK (오목)
+# OhOhMok (오목)
 
-전 발로란트 프로게이머, 현 제스트아카데미를 운영하고있는 발로란트 소바 권위자 ZEST 내 친구를 기념하기 위한 오목 게임입니다.
-브라우저에서 즐기는 오목 게임. 15×15 판, 한국식 규칙(흑 쌍삼·장목 금지).
+브라우저에서 즐기는 오목 게임. 내 사진을 돌로 쓸 수 있습니다. 15×15 판, 한국식 규칙(흑 쌍삼·장목 금지).
 
 - **한국식 규칙 (모든 모드 공통)** — 흑은 쌍삼(3-3)·장목(6목 이상)을 둘 수 없음(4-4와 정확히 5목은 허용), 백은 제한 없음. 금수 자리를 누르면 착수되지 않고 안내가 뜸. 팀전은 방장이, 온라인은 받는 쪽이 한 번 더 검증
 - **AI 대전** — 쉬움 / 보통 / 어려움 / æ 원준 (결과 화면에 "AI 대전 · 난이도" 표시). 사람·AI 모두 위 규칙을 따름
 - **대국 방식** — 모드 선택 후 [일반전 / 속기전(new!)]. 일반전: 시간 제한 없음·5분·10분 중 선택, 다 쓰면 초읽기 30초×3회. 속기전: 한 수 5초·10초, 넘기면 즉시 패배. AI 대전은 내 시간만 계산, 방은 방장이 정한 규칙을 참가자도 따름
 - **방 만들기** (구 팀전, 1:1 온라인 대전 통합) — 최대 4명(1:1, 2:2, 3:1 등). 방장이 팀을 골라 방을 만들고, 참가자는 로비에서 팀 선택. 팀원이 나가도 계속 진행, 한 팀 전원이 10초 넘게 이탈하면 패배. 방장이 나가면 다음 접속자가 방장 승계
+- **사진 돌** — 사진을 올리거나 Google로 로그인하면 내 돌에 내 사진이 들어감(배경은 자동으로 지움, 안 되면 사진 그대로). 방에서는 각 팀 첫 플레이어의 사진. 다른 사람 사진 숨기기, 방장은 참가자 사진 끄기 가능
+- **다크/라이트 테마** — 헤더 버튼으로 전환(처음엔 OS 설정을 따름). 회색 바탕 + 진녹색 강조, 바둑판은 그대로
 - 모바일 터치, 키보드 조작(방향키 + Enter/Space), 스크린리더 안내 지원
 
 배포: https://builtkwon.github.io/OhOhMok/ (GitHub Pages, `main` 브랜치 루트). [ZESTMOK](https://builtkwon.github.io/ZESTMOK/)에서 분리한 새 버전이며, ZESTMOK은 따로 계속 서비스합니다.
@@ -69,9 +70,13 @@ npm run serve   # http://localhost:8080
 
 정적 페이지이므로 이 값은 공개됩니다. 사용 한도가 있는 무료 TURN 계정을 쓰는 것을 권장합니다.
 
-## Google 로그인 (개발 중)
+## 사진 돌·Google 로그인
 
-프로필 사진을 돌로 쓰기 위한 선택 로그인입니다. 설계: [`docs/profile-stones.md`](docs/profile-stones.md)
+로그인은 선택입니다. 서버 없이 브라우저에만 저장합니다(`ohohmok-profile`). 설계: [`docs/profile-stones.md`](docs/profile-stones.md)
+
+- 프로필 메뉴를 처음 열 때만 Google 스크립트를 불러옵니다(페이지를 열 때는 외부 요청 없음).
+- 배경 지우기는 MediaPipe(`vendor/mediapipe/`, 약 15MB)를 사진을 정할 때만 불러옵니다. 첫 사진은 내려받는 동안 원본으로 보이다가 끝나면 바뀝니다.
+- 방에서 받는 사진은 Google 사진 주소(`lh3.googleusercontent.com`)나 작은 data URL만 받고, 방장과 받는 쪽이 둘 다 검사합니다.
 
 - OAuth 클라이언트 ID(공개 값): `923238134204-skkpl84vtimf60a8s1sl00562tqlr7b9.apps.googleusercontent.com`
 - 승인된 JavaScript 원본: `https://builtkwon.github.io`, `http://localhost:8080`. 다른 주소에서 테스트하려면 Google Cloud Console에서 원본을 추가해야 합니다.
@@ -81,15 +86,17 @@ npm run serve   # http://localhost:8080
 
 | 파일 | 설명 |
 |---|---|
-| `index.html` | 화면 마크업. 스크립트를 classic `<script>`로 순서대로 읽음(peerjs → `ai.js` → `team.js` → `clock.js` → `room.js` → `app.js`) |
+| `index.html` | 화면 마크업. 스크립트를 classic `<script>`로 순서대로 읽음(peerjs → `ai.js` → `team.js` → `profile.js` → `clock.js` → `room.js` → `app.js`). 테마는 `<head>`의 짧은 스크립트가 첫 화면 전에 정함(`ohohmok-theme`) |
 | `style.css` | 스타일. 기본 돌은 단색(`--stone-black`/`--stone-white`), 사진 돌은 `--stone-black-img`/`--stone-white-img` |
 | `app.js` | 게임 진행·판·입력·AI 대전·결과 창, 시작(Init) |
-| `room.js` | 방 만들기(온라인, PeerJS 호스트 스타·방장 승계) |
+| `profile.js` | 사진 돌: 업로드·배경 지우기·Google 로그인·저장, 돌에 사진 적용(전역 `Profile`) |
+| `room.js` | 방 만들기(온라인, PeerJS 호스트 스타·방장 승계·사진 전달) |
 | `clock.js` | 시계(일반전/속기전 표시·시간 초과) |
 | `ai.js` | AI (패턴 평가 + 알파베타 탐색 + 대국 학습) |
-| `team.js` | 방 규칙(순번, 시작 조건, 방장 승계) + 시간 제한(일반전/속기전) 순수 로직 |
+| `team.js` | 방 규칙(순번, 시작 조건, 방장 승계, 사진 주소 검사) + 시간 제한(일반전/속기전) 순수 로직 |
 | `img/` | 원준 보스 이미지, 파비콘, 공유용 OG 이미지 (기본 돌은 사진 없이 CSS) |
 | `vendor/peerjs.min.js` | PeerJS 1.5.4 (MIT) |
+| `vendor/mediapipe/` | MediaPipe Tasks Vision 1.2.2 + selfie segmenter (Apache-2.0), 배경 지우기용, 필요할 때만 로드 |
 | `tests/` | 테스트 + AI 측정 도구(`duel.js`, `duel-record.js`, `analyze-losses.js`) |
 | `docs/` | 설계·측정 기록 ([`boss-ai.md`](docs/boss-ai.md): 보스 AI 측정 결과와 검토 대기 안, [`profile-stones.md`](docs/profile-stones.md): 프로필 사진 돌 설계, [`draw-resign.md`](docs/draw-resign.md): 무승부·항복 설계) |
 | `AGENTS.md`, `TODO-CONTRACT.md`, `.claude/` | 작업 역할·파일 소유·이음새 제안·에이전트 스킬 (AI 협업용) |

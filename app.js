@@ -49,7 +49,7 @@ function selectRule(k) {
   RULE = k === 'b' ? {k, per: 5000} : {k, main: 0};
   renderTc();
   hideOverlay('rule-overlay');
-  if (gameMode === 'ai') showOverlay('select-overlay'); else teamEntry();
+  if (gameMode === 'ai') { aiStones(false); showOverlay('select-overlay'); } else teamEntry();
 }
 function ruleBack() { hideOverlay('rule-overlay'); showOverlay('mode-overlay'); }
 function renderTc() {
@@ -70,7 +70,11 @@ const OVERLAYS = '.overlay.show,.select-overlay.show,.mode-overlay.show,.room-ov
 let lastFocus = null;
 function syncInert() {
   const open = document.querySelectorAll(OVERLAYS).length > 0;
-  document.querySelector('header').inert = open;
+  // the theme/profile tools stay usable over the first screen (mode select only); any other overlay blocks them
+  const modeOnly = open && [...document.querySelectorAll(OVERLAYS)].every(o => o.id === 'mode-overlay');
+  document.querySelector('header h1').inert = open;
+  const tools = document.querySelector('.header-tools');
+  tools.inert = open && !modeOnly; tools.classList.toggle('above', modeOnly);
   document.querySelector('.game-layout').inert = open;
 }
 function showOverlay(id) {
@@ -88,6 +92,7 @@ function hideOverlay(id) {
 function announce(msg) { document.getElementById('sr-live').textContent = msg; }
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
+  if (!document.getElementById('profile-menu').hidden) return toggleProfileMenu(false);
   const on = (id) => document.getElementById(id).classList.contains('show');
   if (on('overlay')) closeOverlay();
   else if (on('team-overlay')) teamBack();
@@ -134,7 +139,7 @@ function selectColor(color) {
 }
 
 function updateBadges() {
-  applyBoss();
+  applyBoss(); aiStones(true);
   const nBlack = document.getElementById('name-black');
   const nWhite = document.getElementById('name-white');
   const lBlack = document.getElementById('label-black');
@@ -520,6 +525,68 @@ function scaleBoard(){
 window.addEventListener('resize',scaleBoard);
 window.addEventListener('orientationchange',scaleBoard);
 
+// ─── THEME (attribute set before paint by the inline script in index.html) ───
+function setTheme(t, save) {
+  document.documentElement.dataset.theme = t;
+  document.querySelector('meta[name=theme-color]').content = t === 'light' ? '#f2f2f2' : '#161616';
+  document.getElementById('theme-btn').setAttribute('aria-pressed', t === 'dark');
+  if (save) try { localStorage.setItem('ohohmok-theme', t); } catch (e) {}
+}
+function toggleTheme() { setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light', true); }
+
+// ─── PROFILE (global Profile from profile.js; the page works without it) ───
+const hasProfile = () => typeof Profile !== 'undefined';
+// AI mode: my photo on my color once picked, default stone for the AI (boss photos win via !important)
+function aiStones(picked) {
+  if (!hasProfile()) return;
+  Profile.setStone(humanPlayer, picked ? Profile.photo() : null);
+  Profile.setStone(aiPlayer, null);
+}
+function toggleProfileMenu(open) {
+  const m = document.getElementById('profile-menu'), btn = document.getElementById('profile-btn');
+  if (open === undefined) open = m.hidden;
+  m.hidden = !open; btn.setAttribute('aria-expanded', open);
+  if (open) { gsiButton(); m.querySelector('button:not([hidden])').focus(); } else if (m.contains(document.activeElement)) btn.focus();
+}
+document.addEventListener('click', (e) => { if (!document.getElementById('profile-wrap').contains(e.target)) toggleProfileMenu(false); });
+function profileMsg(t) { document.getElementById('pm-msg').textContent = t; if (t) announce(t); }
+let gsiState = ''; // '' | 'ok' | 'fail': official Google button is rendered once, on first menu open (no GIS request on page load)
+function gsiButton() {
+  if (gsiState || Profile.signedIn()) return;
+  gsiState = 'ok';
+  Profile.renderButton(document.getElementById('pm-gsi')).catch(e => { gsiState = 'fail'; profileMsg((e && e.message) || '로그인하지 못했습니다'); renderProfile(); });
+}
+function profileLogin() {
+  profileMsg('');
+  if (Profile.signedIn()) { Profile.logout(); document.querySelector('#profile-menu button:not([hidden])').focus(); return; }
+  Promise.resolve().then(() => Profile.login()).catch(e => profileMsg((e && e.message) || '로그인하지 못했습니다')); // rejects in Korean when One Tap is skipped
+}
+function profileUpload(input) {
+  const f = input.files[0]; input.value = '';
+  if (!f) return;
+  profileMsg('');
+  Profile.upload(f).catch(e => profileMsg((e && e.message) || '사진을 올리지 못했습니다'));
+}
+function renderProfile() {
+  const src = Profile.photo(), btn = document.getElementById('profile-btn');
+  btn.style.backgroundImage = src ? `url("${src}")` : ''; // src is validated by Profile (TeamLogic.validAvatar charset: no CSS injection)
+  btn.classList.toggle('has-photo', !!src);
+  const inG = Profile.signedIn(), login = document.getElementById('pm-login');
+  login.textContent = inG ? `로그아웃 (${Profile.name() || 'Google'})` : 'Google 로그인';
+  login.hidden = !inG && gsiState !== 'fail'; // signed out: the official button in #pm-gsi; the One Tap button only if it failed to load
+  document.getElementById('pm-gsi').hidden = inG;
+  if (!inG && !document.getElementById('profile-menu').hidden) gsiButton(); // signed out with the menu open (e.g. right after logout)
+  document.getElementById('pm-clear').hidden = !Profile.hasUpload();
+  document.getElementById('pm-hide').setAttribute('aria-pressed', Profile.hideOthers());
+  if (gameMode === 'ai' && !document.getElementById('select-overlay').classList.contains('show')) aiStones(true);
+}
+if (hasProfile()) {
+  document.getElementById('profile-wrap').hidden = false;
+  Profile.onChange(renderProfile);
+  renderProfile();
+}
+
 // Init
+setTheme(document.documentElement.dataset.theme);
 initBoard(); updateTurn(); updateScores(); scaleBoard();
 showOverlay('mode-overlay');
