@@ -70,7 +70,11 @@ const OVERLAYS = '.overlay.show,.select-overlay.show,.mode-overlay.show,.room-ov
 let lastFocus = null;
 function syncInert() {
   const open = document.querySelectorAll(OVERLAYS).length > 0;
-  document.querySelector('header').inert = open;
+  // the theme/profile tools stay usable over the first screen (mode select only); any other overlay blocks them
+  const modeOnly = open && [...document.querySelectorAll(OVERLAYS)].every(o => o.id === 'mode-overlay');
+  document.querySelector('header h1').inert = open;
+  const tools = document.querySelector('.header-tools');
+  tools.inert = open && !modeOnly; tools.classList.toggle('above', modeOnly);
   document.querySelector('.game-layout').inert = open;
 }
 function showOverlay(id) {
@@ -562,7 +566,8 @@ function renderProfile() {
   btn.style.backgroundImage = src ? `url("${src}")` : ''; // src is validated by Profile (TeamLogic.validAvatar charset: no CSS injection)
   btn.classList.toggle('has-photo', !!src);
   document.getElementById('pm-login').textContent = Profile.signedIn() ? `로그아웃 (${Profile.name() || 'Google'})` : 'Google 로그인';
-  document.getElementById('pm-clear').disabled = !src;
+  let up = null; try { up = JSON.parse(localStorage.getItem('ohohmok-profile')).upload; } catch (e) {} // shortcut: reads the §3 key directly; use Profile.hasUpload() if it lands (TODO-CONTRACT)
+  document.getElementById('pm-clear').hidden = !up;
   document.getElementById('pm-hide').setAttribute('aria-pressed', Profile.hideOthers());
   if (gameMode === 'ai' && !document.getElementById('select-overlay').classList.contains('show')) aiStones(true);
 }

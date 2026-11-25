@@ -721,6 +721,7 @@
   .team-col li { padding: 2px 0; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .team-col li.me { color: var(--accent); font-weight: 700; }
   .team-col li.off { opacity: 0.4; }
+  .team-col li .av-off { padding: 1px 6px; margin-left: 4px; font-size: 0.68rem; line-height: 1.3; vertical-align: middle; color: var(--text-secondary); border-color: rgba(var(--accent-rgb),0.3); }
   .team-col .btn:disabled, #team-start:disabled { opacity: 0.4; cursor: not-allowed; }
 
   /* a11y helpers */
@@ -770,6 +771,7 @@
 
   /* header tools (theme, profile): page top-right */
   .header-tools { position: absolute; top: 12px; right: 12px; z-index: 2; display: flex; gap: 8px; }
+  .header-tools.above { z-index: 301; } /* over the mode-select overlay (z 300) */
   .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(var(--accent-rgb),0.4); background: var(--panel-bg) center/cover no-repeat; color: var(--text-primary); font-size: 1.1rem; line-height: 1; cursor: pointer; }
   .icon-btn:hover { border-color: var(--accent); }
   #theme-btn::before { content: '☾'; }
@@ -780,7 +782,6 @@
   .profile-menu[hidden] { display: none; }
   .profile-menu button { font: inherit; font-size: 0.85rem; text-align: left; padding: 10px 12px; border: none; border-radius: 6px; background: none; color: var(--text-primary); cursor: pointer; }
   .profile-menu button:hover { background: rgba(var(--accent-rgb),0.12); }
-  .profile-menu button:disabled { opacity: 0.4; cursor: default; }
   #pm-hide::before { content: '☐ '; }
   #pm-hide[aria-pressed="true"]::before { content: '☑ '; color: var(--accent); }
   .pm-msg { font-size: 0.75rem; color: var(--danger); padding: 0 12px; }

@@ -16,9 +16,15 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   ok(name+' mode overlay focused', await p.evaluate(()=>document.activeElement.classList.contains('mode-card')));
   ok(name+' background inert', await p.evaluate(()=>document.querySelector('.game-layout').inert));
   ok(name+' hidden overlays not focusable', await p.evaluate(()=>['select-overlay','rule-overlay','team-overlay','overlay'].every(id=>getComputedStyle(document.getElementById(id)).visibility==='hidden')));
+  // theme/profile tools usable on the first screen (mode select), blocked under any other overlay
+  ok(name+' header tools on top of mode select', await p.evaluate(()=>{const b=document.getElementById('theme-btn'),r=b.getBoundingClientRect();return !b.closest('[inert]')&&document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===b;}));
+  const th0=await p.evaluate(()=>document.documentElement.dataset.theme); await p.click('#theme-btn');
+  ok(name+' theme toggles from mode select', await p.evaluate(t=>document.documentElement.dataset.theme!==t,th0)); await p.click('#theme-btn');
+  await p.focus('#mode-overlay .mode-card');
   await p.keyboard.press('Enter'); await p.waitForTimeout(500); // AI card via keyboard
   ok(name+' rule step open (일반전/속기전, new! tag)', await p.evaluate(()=>document.getElementById('rule-overlay').contains(document.activeElement)&&document.querySelector('#rule-overlay .new-tag').textContent==='new!'));
   await p.keyboard.press('Enter'); await p.waitForTimeout(500); // 일반전
+  ok(name+' header tools inert under other overlays', await p.evaluate(()=>document.querySelector('.header-tools').inert&&document.querySelector('header h1').inert));
   ok(name+' select dialog open + focus inside', await p.evaluate(()=>document.getElementById('select-overlay').contains(document.activeElement)));
   await p.click('.level-chip[data-level="hard"]');
   ok(name+' level hard checked', await p.evaluate(()=>document.querySelector('.level-chip[data-level=hard]').getAttribute('aria-checked')==='true'&&aiLevel==='hard'));
