@@ -29,8 +29,9 @@ turn: {team: 1|2, idx: {1: n, 2: n}}        // 팀별 로테이션 포인터
 - `token`(sessionStorage 랜덤값)으로 재접속 시 같은 플레이어 복구.
 
 ## 메시지
-- G→H: `hello {id, name}`(입장·재접속, `id`=sessionStorage 토큰) · `team {team}`(시작 전 팀 변경) · `move {row, col}` · `ping`
-- H→G: `snap {hostId, players, started, turn, board, scores, gameOver, lastPlaced, winningCells, result, cd, rule, clock}`(변경마다 전체 상태) · `reject {msg}`(정원 초과·시작 후 신규 입장 등, 보내고 연결 닫음) · `ping`
+- G→H: `hello {id, name}`(입장·재접속, `id`=sessionStorage 토큰) · `team {team}`(시작 전 팀 변경) · `move {row, col}` · `avatar {src}`(내 사진, hello 직후·사진이 바뀔 때, `src: null`=지움) · `ping`
+- H→G: `snap {hostId, players, started, turn, board, scores, gameOver, lastPlaced, winningCells, result, cd, rule, clock}`(변경마다 전체 상태) · `reject {msg}`(정원 초과·시작 후 신규 입장 등, 보내고 연결 닫음) · `avatar {id, src}`(사진 전달, 새로 들어온 guest에게는 아는 사진을 한 번씩. `src: null`=지움 또는 방장 끄기) · `ping`
+- `avatar`는 snap에 싣지 않는다(32KB × 4). 방장과 받는 쪽 모두 `TeamLogic.validAvatar`로 검사하고, 사진은 `TM.av[id]`에 둔다. 방장이 끈 사람은 `players[i].avatarOff = true`(snap에 실려 승계 후에도 유지)라 이후 `avatar`를 무시한다. 팀 대표 사진·숨기기 규칙: [profile-stones.md §4-5](profile-stones.md).
 - 새 판은 방장만 시작(`tmRematch`, 별도 요청 메시지 없음). 게스트 간 직접 통신 없음. 코드: `room.js`의 `tmHostData`(H)·`tmGuestData`(G)
 
 ## 로비 / 방 만들기
@@ -48,6 +49,7 @@ turn: {team: 1|2, idx: {1: n, 2: n}}        // 팀별 로테이션 포인터
 - 플레이어별 하트비트. 끊김 → `online=false` → `lobby/state` 브로드캐스트(팀원 이탈 표시).
 - 끊긴 사람 차례였다면 즉시 팀 내 다음 접속자로 넘김(팀에 접속자가 남아 있을 때).
 - 호스트 이탈 → 입장 순서상 다음 접속자가 방장 승계(8초 내 못 열면 그다음 사람).
+  - 후보는 방 id 접속이 `peer-unavailable`이거나 6초 시간 초과면 방을 연다. 공용 브로커는 없는 id 앞으로 온 연결 요청을 대기열에 두었다가 만료될 때 한꺼번에 `peer-unavailable`을 보내서, 6초보다 늦는 일이 잦다. 옛 방장이 아직 id를 쥐고 있으면 `unavailable-id`를 받고 guest로 돌아간다.
 
 ## 재시작
 - 호스트만 새 판 시작, 로비로 복귀(팀 재선택 가능). 점수 유지.
