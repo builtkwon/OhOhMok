@@ -347,7 +347,9 @@ function tmMigrateStep() {
   tmGuestConnect(() => { TM.busy = false; tmSend({type: 'hello', id: TM.me, name: TM.name}); }, (err) => {
     if (!TM) return;
     TM.busy = false;
-    if (cand.id === TM.me && err && err.type === 'peer-unavailable') tmTakeover();
+    // The broker reports peer-unavailable only when its queue for the dead id expires, often after our 6 s timeout.
+    // Taking over on timeout is safe: if the host id is still held, tmOpenHostPeer gets unavailable-id and we stay a guest.
+    if (cand.id === TM.me && (err === 'timeout' || (err && err.type === 'peer-unavailable'))) tmTakeover();
   });
 }
 function tmTakeover() {
