@@ -19,11 +19,12 @@
       return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
     } catch (e) { return null; }
   }
+  const cleanName = (n) => typeof n === 'string' ? n.slice(0, 64) : null;
   const bigPicture = (u) => u.replace(/=s96-c$/, '=s128-c');
   function fromClaims(p) {
     if (!p || typeof p.sub !== 'string' || !p.sub) return null;
     const pic = typeof p.picture === 'string' ? bigPicture(p.picture) : null;
-    return { name: typeof p.name === 'string' ? p.name : null, google: { sub: p.sub, picture: validAvatar(pic) ? pic : null } };
+    return { name: cleanName(p.name), google: { sub: p.sub, picture: validAvatar(pic) ? pic : null } };
   }
   function firstFit(tries, encode) {
     for (const x of tries) { const v = encode(x); if (typeof v === 'string' && v.length <= MAX) return v; }
@@ -35,7 +36,7 @@
     if (!o || typeof o !== 'object' || Array.isArray(o)) o = {};
     const g = o.google, m = o.matted;
     return {
-      name: typeof o.name === 'string' ? o.name : null,
+      name: cleanName(o.name),
       google: g && typeof g.sub === 'string' ? { sub: g.sub, picture: validAvatar(g.picture) ? g.picture : null } : null,
       upload: validAvatar(o.upload) ? o.upload : null,
       matted: m && typeof m.from === 'string' && validAvatar(m.png) ? { from: m.from, png: m.png } : null,
@@ -56,14 +57,16 @@
   }
 
   // ---- browser ----
-  let S = null, gis = null, seg = null;
+  let S = null, gis = null, seg = null, pending = null;
   const listeners = [];
   const store = () => S || (S = readStore(get(KEY)));
   function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function save(patch) {
     Object.assign(store(), patch);
-    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} // full/blocked storage: keep it for this tab only
+    let ok = true;
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { ok = false; } // full/blocked storage: kept for this tab only
     listeners.forEach(f => f());
+    return ok;
   }
   const loadScript = (src) => new Promise((ok, no) => {
     const s = document.createElement('script');
@@ -96,20 +99,19 @@
     r.close();
     if (mask.length !== SIZE * SIZE || !applyMask(px.data, mask)) return null;
     ctx.putImageData(px, 0, 0);
-    return firstFit([128, 112, 96, 80, 64], n => {
+    return firstFit([128, 112, 96, 80, 64], n => { // a busy photo may step down to 64px to fit 44,000 chars
       const d = document.createElement('canvas');
       d.width = d.height = n;
       d.getContext('2d').drawImage(c, 0, 0, n, n);
       return d.toDataURL('image/png');
     });
   }
-  // 3 s budget; the segmenter keeps loading after a timeout, so the next photo is faster
-  const budgeted = (src) => Promise.race([matte(src), new Promise(ok => setTimeout(ok, BUDGET, null))]).catch(() => null);
-  async function refreshMatte() {
+  // Waits at most 3 s; a later matte still lands (onChange) if the source has not changed meanwhile.
+  function refreshMatte() {
     const src = sourceOf(store());
-    if (!src || (S.matted && S.matted.from === src)) return;
-    const png = await budgeted(src);
-    if (png && sourceOf(store()) === src) save({ matted: { from: src, png } });
+    if (!src || (S.matted && S.matted.from === src)) return Promise.resolve();
+    const p = matte(src).catch(() => null).then(png => { if (png && sourceOf(store()) === src) save({ matted: { from: src, png } }); });
+    return Promise.race([p, new Promise(ok => setTimeout(ok, BUDGET))]);
   }
   const fail = (m) => { throw new Error(m); };
 
@@ -123,28 +125,35 @@
     const c = square(img, SIZE);
     const jpeg = firstFit([0.8, 0.6, 0.4], q => c.toDataURL('image/jpeg', q));
     if (!jpeg || !validAvatar(jpeg)) fail('사진이 너무 큽니다. 다른 사진을 골라 주세요');
-    const png = await budgeted(jpeg);
-    save({ upload: jpeg, matted: png ? { from: jpeg, png } : null });
+    if (!save({ upload: jpeg, matted: null })) fail('저장 공간이 부족합니다');
+    await refreshMatte();
   }
   function clearUpload() { save({ upload: null, matted: null }); refreshMatte(); }
 
+  // one GIS callback for both login() (prompt) and the rendered button
+  function onCredential(r) {
+    const c = fromClaims(decodeJwt(r && r.credential)), p = pending;
+    pending = null;
+    if (!c) return p && p.no(new Error('Google 로그인 정보를 읽지 못했습니다'));
+    save(c);
+    refreshMatte();
+    if (p) p.ok();
+  }
+  const gisReady = () => gis || (gis = loadScript(GIS)
+    .then(() => root.google.accounts.id.initialize({ client_id: CLIENT_ID, use_fedcm_for_prompt: true, callback: onCredential }))
+    .catch(() => { gis = null; fail('Google 로그인을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요'); }));
   function login() {
-    gis = gis || loadScript(GIS).catch(() => { gis = null; fail('Google 로그인을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요'); });
-    return gis.then(() => new Promise((ok, no) => {
-      const id = root.google.accounts.id;
-      id.initialize({
-        client_id: CLIENT_ID, use_fedcm_for_prompt: true,
-        callback: (r) => {
-          const c = fromClaims(decodeJwt(r && r.credential));
-          if (!c) return no(new Error('Google 로그인 정보를 읽지 못했습니다'));
-          save(c);
-          refreshMatte();
-          ok();
-        },
+    return gisReady().then(() => new Promise((ok, no) => {
+      pending = { ok, no };
+      root.google.accounts.id.prompt(n => {
+        const shut = (n.isNotDisplayed && n.isNotDisplayed()) || (n.isSkippedMoment && n.isSkippedMoment())
+          || (n.isDismissedMoment && n.isDismissedMoment() && n.getDismissedReason() !== 'credential_returned');
+        if (shut && pending && pending.no === no) { pending = null; no(new Error('Google 로그인 창이 열리지 않았습니다. 잠시 후 다시 시도해 주세요')); }
       });
-      id.prompt(n => { if ((n.isNotDisplayed && n.isNotDisplayed()) || (n.isSkippedMoment && n.isSkippedMoment())) no(new Error('Google 로그인 창이 열리지 않았습니다. 잠시 후 다시 시도해 주세요')); });
     }));
   }
+  // official Google button inside el (works when One Tap is in its cooldown)
+  const renderButton = (el) => gisReady().then(() => root.google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'signin_with', locale: 'ko' }));
   // Google name goes too (it came from Google); the upload stays until clearUpload
   function logout() {
     const s = store(), pic = s.google && s.google.picture;
@@ -156,16 +165,17 @@
     listeners.forEach(f => f());
   }
   function setStone(color, src) {
+    if (color !== 1 && color !== 2) return;
     const v = stoneValue(src), p = color === 1 ? '--stone-black-img' : '--stone-white-img', st = document.documentElement.style;
     v ? st.setProperty(p, v) : st.removeProperty(p);
   }
 
   const api = {
     photo: () => photoOf(store()), name: () => store().name, signedIn: () => !!store().google,
-    login, logout, upload, clearUpload,
+    login, renderButton, logout, upload, clearUpload, hasUpload: () => !!store().upload,
     hideOthers: () => get(HIDE) === 'true', setHideOthers,
     onChange: (fn) => { listeners.push(fn); }, setStone,
-    _: { validAvatar, stoneValue, decodeJwt, bigPicture, fromClaims, firstFit, readStore, sourceOf, photoOf, applyMask },
+    _: { cleanName, validAvatar, stoneValue, decodeJwt, bigPicture, fromClaims, firstFit, readStore, sourceOf, photoOf, applyMask },
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Profile = api;

@@ -18,6 +18,7 @@ assert.strictEqual(P.bigPicture('https://lh3.googleusercontent.com/a/x'), 'https
 assert.deepStrictEqual(P.fromClaims(claims), { name: '김오목 ~?>', google: { sub: '1234567890', picture: 'https://lh3.googleusercontent.com/a/ACg8oc-_x=s128-c' } });
 assert.deepStrictEqual(P.fromClaims({ sub: '1', picture: 'https://evil.example/a.png' }), { name: null, google: { sub: '1', picture: null } });
 assert.strictEqual(P.fromClaims({ name: 'no sub' }), null);
+assert.strictEqual(P.fromClaims({ sub: '1', name: '가'.repeat(70) }).name, '가'.repeat(64), 'name capped at 64');
 assert.strictEqual(P.fromClaims(null), null);
 
 // size loop: first encoding with length <= 44,000 wins, in the given order; none fits -> null
@@ -57,6 +58,8 @@ assert.deepStrictEqual(P.readStore(JSON.stringify({ name: 5, google: { sub: 1 },
 const full = { name: '오목', google: { sub: '1', picture: 'https://lh3.googleusercontent.com/a/x=s128-c' }, upload: jpg, matted: { from: jpg, png: 'data:image/png;base64,AAAA' } };
 assert.deepStrictEqual(P.readStore(JSON.stringify(full)), full);
 assert.deepStrictEqual(P.readStore(JSON.stringify({ google: { sub: '1', picture: null } })), { ...EMPTY, google: { sub: '1', picture: null } });
+
+assert.strictEqual(P.readStore(JSON.stringify({ name: 'n'.repeat(65) })).name, 'n'.repeat(64), 'stored name capped at 64');
 
 // photo priority: matted (of the current source) > upload > Google > null
 const g = full.google.picture;
