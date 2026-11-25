@@ -321,9 +321,12 @@
   body.ai-2 :is(.stone.white-stone, .player-stone.white, .modal-stone.white-stone)::before { content: ''; position: absolute; inset: 0; background: var(--face) center/100% no-repeat; }
   body:is(.ai-1, .ai-2) .stone.rare::before { background-image: var(--face-rare); }
   /* rare face blinks: eyes open most of the time, ^‿^ (normal face) for a moment; stones blink out of step */
-  body:is(.ai-1, .ai-2) .stone.rare::before { animation: rareBlink 4s steps(1, end) infinite; }
+  /* literal urls per color: Safari ignores var() inside @keyframes */
+  body.ai-1 .stone.rare::before { animation: rareBlinkW 4s steps(1, end) infinite; }
+  body.ai-2 .stone.rare::before { animation: rareBlinkB 4s steps(1, end) infinite; }
   body:is(.ai-1, .ai-2) .stone.rare:nth-child(odd)::before { animation-delay: -1.7s; }
-  @keyframes rareBlink { 0%, 92%, 100% { background-image: var(--face-rare); } 94%, 98% { background-image: var(--face); } }
+  @keyframes rareBlinkW { 0%, 92%, 100% { background-image: url(img/ai-face-rare-w.svg); } 94%, 98% { background-image: url(img/ai-face-w.svg); } }
+  @keyframes rareBlinkB { 0%, 92%, 100% { background-image: url(img/ai-face-rare-b.svg); } 94%, 98% { background-image: url(img/ai-face-b.svg); } }
   @media (prefers-reduced-motion: reduce) { body:is(.ai-1, .ai-2) .stone.rare::before { animation: none; } }
   body.ai-1 { --face: url(img/ai-face-w.svg); --face-rare: url(img/ai-face-rare-w.svg); }
   body.ai-2 { --face: url(img/ai-face-b.svg); --face-rare: url(img/ai-face-rare-b.svg); }
