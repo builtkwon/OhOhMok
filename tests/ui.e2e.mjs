@@ -1,6 +1,8 @@
 // UI E2E (local, no network). Run: npm run test:ui
 import { chromium, devices } from 'playwright';
 import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 const url=new URL('../index.html',import.meta.url).href;
 const b=await chromium.launch({args:['--disable-features=WebRtcHideLocalIpsWithMdns']});
 // profile.js is built in a parallel branch; until merged its absence is not a failure
@@ -113,5 +115,19 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   await p.evaluate(()=>toggleTheme()); await p.reload();
   ok('theme toggle persists across reload', await th()==='light,false'&&(await ls())['ohohmok-theme']==='light');
   await ctx.close();
+}
+{ // PWA manifest: Chromium only reads it over http, so serve the repo on localhost for this block
+  const root=new URL('..',import.meta.url), types={html:'text/html',js:'text/javascript',css:'text/css',png:'image/png',svg:'image/svg+xml',woff2:'font/woff2',webmanifest:'application/manifest+json'};
+  const srv=createServer(async(q,r)=>{try{const f=new URL('.'+decodeURIComponent(q.url.split('?')[0]).replace(/\/$/,'/index.html'),root);r.writeHead(200,{'content-type':types[f.pathname.split('.').pop()]||'application/octet-stream'});r.end(await readFile(f));}catch(e){r.writeHead(404);r.end();}});
+  await new Promise(r=>srv.listen(0,'127.0.0.1',r)); const base=`http://127.0.0.1:${srv.address().port}/`;
+  const ctx=await b.newContext(); const p=await ctx.newPage(); await p.goto(base);
+  const href=await p.evaluate(()=>document.querySelector('link[rel=manifest]')?.href);
+  const cdp=await ctx.newCDPSession(p); const m=await cdp.send('Page.getAppManifest');
+  const j=JSON.parse(m.data||'{}'), icons=j.icons||[];
+  ok('manifest linked, parsed without errors '+JSON.stringify(m.errors), href===base+'manifest.webmanifest'&&m.errors.length===0&&j.name==='오오목'&&j.short_name==='오오목'&&j.display==='standalone'&&j.start_url==='./');
+  ok('manifest icons 192/512 any + 512 maskable, all fetchable at their size', icons.some(i=>i.sizes==='192x192')&&icons.some(i=>i.sizes==='512x512'&&i.purpose==='maskable')&&
+    (await Promise.all([...icons.map(i=>[i.src,i.sizes]),['img/apple-touch-icon.png','180x180']].map(([s,z])=>p.evaluate(async([s,z])=>{const im=new Image();im.src=s;await im.decode();return im.naturalWidth+'x'+im.naturalHeight===z;},[s,z])))).every(Boolean));
+  ok('apple-touch-icon + app title meta', await p.evaluate(()=>!!document.querySelector('link[rel=apple-touch-icon]')&&document.querySelector('meta[name=apple-mobile-web-app-title]').content==='오오목'));
+  await ctx.close(); srv.close();
 }
 await b.close();
