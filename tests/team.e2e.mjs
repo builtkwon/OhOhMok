@@ -96,20 +96,44 @@ try {
   await P.evaluate(() => teamCreate(1)); await P.waitForFunction(() => TM && TM.joined, null, W);
   const pc = await P.evaluate(() => TM.code);
   await join(Q, pc); await want(P, { 1: img('A'), 2: img('B') }); await want(Q, { 1: img('A'), 2: img('B') }); ok('avatars relayed both ways', true);
+  ok('host lobby shows turn-off button as soon as the photo arrives', await P.waitForFunction(() => document.querySelectorAll('#tl2 .av-off').length === 1, null, W).then(() => true, () => false));
   await join(R, pc); await want(R, { 1: img('A'), 2: img('B') }); ok('late joiner gets known avatars, 2nd black player is not rep', true);
   ok('avatar not in snap', await R.evaluate(() => !JSON.stringify(TM.players).includes('base64')));
   await Q.evaluate(s => __ph.set(s), img('D')); await want(R, { 1: img('A'), 2: img('D') }); ok('photo change relayed', true);
   await Q.evaluate(() => tmSend({ type: 'avatar', src: 'javascript:alert(1)' })); await Q.evaluate(() => tmSend({ type: 'avatar', src: 'data:image/png;base64,A");x:url(y' }));
   await R.waitForTimeout(800); ok('invalid avatar ignored', (await st(R)) === JSON.stringify({ 1: img('A'), 2: img('D') }));
-  ok('host sees turn-off button', await P.evaluate(() => document.querySelectorAll('#tl2 .av-off').length === 1 && !document.querySelector('#tl1 .av-off')));
+  await R.evaluate(() => { window.__n = 0; TM.conn.on('data', d => { if (d && d.type === 'avatar') __n++; }); });
+  await P.evaluate(() => { for (let i = 0; i < 4; i++) __ph.set(__ph.src, !__ph.hide); }); await Q.evaluate(() => { for (let i = 0; i < 4; i++) __ph.set(__ph.src, !__ph.hide); });
+  await R.waitForTimeout(800); ok('hide toggles do not re-send own photo', (await R.evaluate(() => __n)) === 0);
+  await Q.evaluate(() => { for (let k = 0; k < 30; k++) tmSend({ type: 'avatar', src: 'data:image/png;base64,' + (k % 2 ? 'X' : 'Y').repeat(4000) }); });
+  await R.waitForTimeout(1500); const nf = await R.evaluate(() => __n); ok('avatar flood rate-limited (' + nf + ' relays)', nf >= 1 && nf <= 2);
+  ok('host sees turn-off buttons for others only', await P.evaluate(() => document.querySelectorAll('#tl2 .av-off').length === 1 && document.querySelectorAll('#tl1 .av-off').length === 1 && !document.querySelector('li.me .av-off')));
   await P.click('#tl2 .av-off'); await want(R, { 1: img('A'), 2: null }); ok('host turn-off reaches guests', true);
   await Q.evaluate(s => __ph.set(s), img('E')); await R.waitForTimeout(800);
   ok('turned-off player stays off', (await st(R)) === JSON.stringify({ 1: img('A'), 2: null }) && (await st(P)).endsWith('null}'));
   ok('own photo still shows for turned-off player', (await st(Q)).includes(img('E')));
   await R.evaluate(() => __ph.set(__ph.src, true)); await want(R, { 1: null, 2: null }); ok('hideOthers hides others', true);
   await Q.evaluate(() => teamPick(1)); await want(Q, { 1: img('A'), 2: null }); ok('rep follows team change', true);
+  await R.evaluate(() => tmLeave()); ok('departed player photo dropped', await P.waitForFunction(id => TM.players.length === 2 && !(id in TM.av), await R.evaluate(() => tmSid()), W).then(() => true, () => false));
   await P.evaluate(() => tmLeave()); ok('leaving clears stones', (await st(P)) === JSON.stringify({ 1: null, 2: null }));
   ok('no page errors (avatar)', P.errs.length + Q.errs.length + R.errs.length === 0);
+  // takeover that cannot open the room (stub Peer, no network): back to guest, and no takeover while the broker is unreachable
+  const S = await mk('Solo');
+  const tk = (mode) => S.evaluate(m => {
+    if (TM) tmLeave();
+    window.Peer = function (id) {
+      const h = {}, f = { open: false, on(e, cb) { (h[e] = h[e] || []).push(cb); return f; }, connect() { return { on() {} }; }, destroy() {}, reconnect() {} };
+      if (id && m === 'err') setTimeout(() => (h.error || []).forEach(cb => cb({ type: 'network' })), 500);
+      return f;
+    };
+    TM = tmBase('guest', 'ABCDEF'); TM.joined = true; TM.hostId = 'oldhost';
+    TM.players = [{ id: 'oldhost', name: 'o', team: 1, online: true }, { id: TM.me, name: 'me', team: 2, online: true }];
+    tmTakeover();
+  }, mode).then(() => S.waitForFunction(() => TM.role === 'guest' && !!TM.migr && TM.hostId === 'oldhost', null, W)).then(() => true, () => false);
+  ok('takeover: host peer error -> back to guest', await tk('err'));
+  ok('takeover: host peer never opens -> back to guest', await tk('hang'));
+  await S.waitForTimeout(7000); ok('no takeover while broker unreachable', await S.evaluate(() => TM.role === 'guest' && !TM.takeover));
+  await S.evaluate(() => tmLeave()); ok('no page errors (takeover stub)', S.errs.length === 0);
 } catch (e) {
   console.error(e); process.exitCode = 1;
   for (const p of [H, A, B, C]) console.log(p.isClosed() ? 'closed' : await p.evaluate(() => TM ? JSON.stringify({ name: TM.name, me: TM.me, role: TM.role, joined: TM.joined, migr: TM.migr, busy: TM.busy, peer: !!TM.peer, conn: !!TM.conn, hostId: TM.hostId, p: TM.players.map(x => x.name + x.online) }) : 'TM null').catch(e => String(e)));

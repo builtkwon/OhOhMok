@@ -21,6 +21,7 @@ function errText(err) {
   if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') return '서버에 연결할 수 없습니다. 잠시 후 다시 시도하세요.';
   if (t === 'webrtc') return '연결 설정에 실패했습니다. 네트워크 환경을 확인하세요.';
   if (err === 'timeout') return '연결 시간이 초과되었습니다.';
+  if (err === 'no-broker') return '서버에 연결할 수 없습니다. 잠시 후 다시 시도하세요.';
   return '연결 오류가 발생했습니다.';
 }
 
@@ -48,7 +49,7 @@ function tmSid() {
 function tmBase(role, code) {
   return {role, code, me: tmSid(), name: TeamLogic.cleanName(document.getElementById('team-name').value) || 'Player',
     peer: null, conn: null, conns: {}, seen: {}, wipe: {}, until: {}, players: [], started: false, turn: null, result: null,
-    hostId: '', av: {}, stones: '', rule: RULE, lastSeen: Date.now(), hb: null, tick: null, rejoin: null, migr: null, busy: false, joined: false, sig: '', ann: '', endShown: false};
+    hostId: '', av: {}, avAt: {}, stones: '', rule: RULE, lastSeen: Date.now(), hb: null, tick: null, rejoin: null, migr: null, busy: false, joined: false, sig: '', ann: '', endShown: false};
 }
 const tmMe = () => TM && TM.players.find(p => p.id === TM.me);
 const tmMyTeam = () => { const m = tmMe(); return m ? m.team : 1; };
@@ -92,7 +93,7 @@ function tmClearLink() {
 function tmLeave() {
   if (!TM) return;
   const t = TM; tmClearLink(); TM = null;
-  clearInterval(t.hb); clearInterval(t.tick); clearInterval(t.rejoin); clearTimeout(t.retry); clearTimeout(t.prune);
+  clearInterval(t.hb); clearInterval(t.tick); clearInterval(t.rejoin); clearTimeout(t.retry); clearTimeout(t.prune); clearTimeout(t.tkTimer);
   Object.values(t.wipe).forEach(clearTimeout);
   document.getElementById('team-banner').textContent = '';
   document.getElementById('conn-status').style.display = 'none';
@@ -123,11 +124,9 @@ function tmOpenHostPeer(regen) {
   p.on('disconnected', () => { try { if (TM && TM.peer === p && !p.destroyed) p.reconnect(); } catch (e) {} });
   p.on('error', (err) => {
     if (!TM || TM.peer !== p) return;
-    if (err.type === 'unavailable-id') { // regen: new code; takeover: someone else already re-opened the room
+    if (TM.takeover) return tmTakeoverFail(); // any error before open: id taken (someone else re-opened) or broker trouble
+    if (err.type === 'unavailable-id') { // regen: new code
       TM.peer = null; try { p.destroy(); } catch (e) {}
-      if (TM.takeover) { // back to guest: the other new host will accept us
-        TM.takeover = false; TM.role = 'guest'; TM.players = TM.prevPlayers; TM.hostId = TM.prevHost; tmHostLost(); return;
-      }
       if (regen) TM.code = generateCode();
       TM.retry = setTimeout(() => { if (TM && !TM.peer) tmOpenHostPeer(regen); }, regen ? 0 : 2000);
       return;
@@ -139,7 +138,7 @@ function tmHostReady() {
   TM.joined = true;
   tmHeartbeat();
   clearInterval(TM.tick); TM.tick = setInterval(tmBanner, 250);
-  if (TM.takeover) { TM.takeover = false; tmUpdateWipe(TM_TAKEOVER_WIPE_MS); }
+  if (TM.takeover) { TM.takeover = false; clearTimeout(TM.tkTimer); tmUpdateWipe(TM_TAKEOVER_WIPE_MS); }
   tmBroadcast();
 }
 function tmOnConn(c) {
@@ -176,7 +175,7 @@ function tmHostHello(c, d) {
   if (old && old !== c) { try { old.close(); } catch (e) {} }
   tmUpdateWipe();
   tmBroadcast();
-  for (const k of Object.keys(TM.av)) { try { c.send({type: 'avatar', id: k, src: TM.av[k]}); } catch (e) {} } // not in snap: 32KB each
+  for (const x of TM.players) if (TM.av[x.id]) { try { c.send({type: 'avatar', id: x.id, src: TM.av[x.id]}); } catch (e) {} } // not in snap: 32KB each
 }
 function tmHostDrop(c) {
   const id = c._tid;
@@ -195,13 +194,17 @@ function tmHostPick(id, team) {
 // shortcut: avatarOff lives on the player, so a lobby leave+rejoin (new player entry) clears it; host can turn it off again.
 function tmHostAvatar(id, src) {
   const p = TM.players.find(x => x.id === id);
-  if (!p || p.avatarOff || (src !== null && !TeamLogic.validAvatar(src))) return;
+  if (!p || p.avatarOff || (src !== null && !TeamLogic.validAvatar(src)) || (TM.av[id] || null) === src) return;
+  // shortcut: changes within 1 s of the last one are dropped (not queued), so a fast upload-then-clear can leave the old photo.
+  const now = Date.now();
+  if (now - (TM.avAt[id] || 0) < 1000) return;
+  TM.avAt[id] = now;
   tmAvatarRelay(id, src);
 }
 function tmAvatarRelay(id, src) {
   if (src) TM.av[id] = src; else delete TM.av[id];
   for (const k of Object.keys(TM.conns)) { try { TM.conns[k].send({type: 'avatar', id, src}); } catch (e) {} }
-  tmStones();
+  if (TM.started) tmStones(); else tmRender(); // lobby: show the host's "사진 끄기" button
 }
 function tmAvatarOff(id) {
   const p = TM && TM.role === 'host' && TM.players.find(x => x.id === id);
@@ -268,6 +271,7 @@ function tmSnap() {
     rule: TM.rule, clock: CLK && TM.started ? {side: CLK.side, used: Date.now() - CLK.t0} : null};
 }
 function tmBroadcast() {
+  for (const k of Object.keys(TM.av)) if (!TM.players.some(p => p.id === k)) delete TM.av[k]; // player removed
   const s = tmSnap();
   for (const id of Object.keys(TM.conns)) { try { TM.conns[id].send(s); } catch (e) {} }
   tmRender();
@@ -313,7 +317,7 @@ function tmGuestConnect(onOpen, onFail) {
     try { p.destroy(); } catch (x) {}
     if (TM === T) onFail(e);
   };
-  const timer = setTimeout(() => fail('timeout'), 6000);
+  const timer = setTimeout(() => fail(p.open ? 'timeout' : 'no-broker'), 6000); // timeout = broker up, host id silent
   p.on('open', () => {
     const c = p.connect(TEAM_PREFIX + T.code, {reliable: true});
     c.on('open', () => {
@@ -359,7 +363,8 @@ function tmGuestData(d) {
 }
 function tmHello() {
   tmSend({type: 'hello', id: TM.me, name: TM.name});
-  if (tmPhoto()) tmSend({type: 'avatar', src: tmPhoto()});
+  TM.myAv = tmPhoto() || null;
+  if (TM.myAv) tmSend({type: 'avatar', src: TM.myAv});
 }
 
 // ── photo stones (docs/profile-stones.md §4-5). Profile (profile.js) is optional. ──
@@ -370,7 +375,8 @@ function tmHookProfile() {
   tmHooked = true;
   Profile.onChange(() => {
     if (!TM) return;
-    if (TM.role === 'host') tmHostAvatar(TM.me, tmPhoto() || null); else tmSend({type: 'avatar', src: tmPhoto() || null});
+    const ph = tmPhoto() || null; // onChange also fires for hideOthers etc.: send only a real photo change
+    if (TM.role === 'host') tmHostAvatar(TM.me, ph); else if (ph !== TM.myAv) { TM.myAv = ph; tmSend({type: 'avatar', src: ph}); }
     tmStones();
   });
 }
@@ -405,7 +411,8 @@ function tmMigrateStep() {
     if (!TM) return;
     TM.busy = false;
     // The broker reports peer-unavailable only when its queue for the dead id expires, often after our 6 s timeout.
-    // Taking over on timeout is safe: if the host id is still held, tmOpenHostPeer gets unavailable-id and we stay a guest.
+    // 'timeout' means our peer reached the broker but the host id stayed silent ('no-broker' = broker unreachable: no takeover).
+    // If the host id is still held or the host peer fails to open, tmTakeoverFail puts us back to guest.
     if (cand.id === TM.me && (err === 'timeout' || (err && err.type === 'peer-unavailable'))) tmTakeover();
   });
 }
@@ -417,7 +424,14 @@ function tmTakeover() {
   TM.hostId = TM.me; TM.conns = {}; TM.seen = {}; TM.until = {}; TM.wipe = {};
   TM.players.forEach(p => { if (p.id !== TM.me) p.online = false; });
   if (!TM.started) TM.prune = setTimeout(() => { if (TM && !TM.started) { TM.players = TM.players.filter(p => p.online); tmBroadcast(); } }, 12000);
+  TM.tkTimer = setTimeout(() => { if (TM && TM.takeover) tmTakeoverFail(); }, TM_PICK_MS); // host peer never opened
   tmOpenHostPeer(false);
+}
+// Takeover did not open the room: back to guest; tmHostLost retries (or the other new host accepts us).
+function tmTakeoverFail() {
+  const p = TM.peer; TM.peer = null; try { if (p) p.destroy(); } catch (e) {}
+  clearTimeout(TM.prune); clearTimeout(TM.tkTimer);
+  TM.takeover = false; TM.role = 'guest'; TM.players = TM.prevPlayers; TM.hostId = TM.prevHost; tmHostLost();
 }
 
 // ── UI ──
