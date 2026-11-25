@@ -32,6 +32,9 @@
 - 저장 키: localStorage `ohohmok-level`, `ohohmok-mem-<난이도>`, sessionStorage `ohohmok-tid`, 사진 `ohohmok-profile`·`ohohmok-hide-avatars`(profile.js), 테마 `ohohmok-theme`(`light`/`dark`, index.html `<head>`·app.js). 첫 실행 때 ZESTMOK의 `zestmok-level`·`zestmok-mem-*`를 새 키가 없을 때만 복사하고 옛 키는 지우지 않는다(`app.js`, [ADR 0001](../adr/0001-ohohmok-repo-split.md)).
 - PeerJS 방 id 접두사 `ohohmok-team-`(`room.js` `TEAM_PREFIX`): ZESTMOK(`zestmok-team-`)과 방이 섞이지 않는다.
 - CSS 변수: `style.css`의 `:root`. 돌: 색 `--stone-black`/`--stone-white`, 사진 `--stone-black-img`/`--stone-white-img`(기본 없음, [profile-stones.md §1](../profile-stones.md)). 테마: `--accent`(`--accent-rgb`, `--accent-light`), `--modal-bg`, `--inset-bg`, `--scrim`, `--danger`, 라이트 값은 `:root[data-theme="light"]`. room.js가 색을 쓸 때도 이 토큰을 쓴다.
+- 글꼴: `--font-sans`(갈무리11 `Galmuri11` 먼저, `@font-face`는 style.css, 파일 `vendor/fonts/`). `--font-serif`는 없앴다. 글자 크기는 12px 배수(12·24·36px), 판 캔버스는 app.js `BOARD_FONT`.
+- AI 얼굴: body 클래스 `ai-1`/`ai-2`(AI 대전·보스 아님·AI가 둔 색, app.js `applyBoss`가 `boss-1`/`boss-2`와 함께 켬)와 `::before` 한 겹. 이미지는 body의 `--face`/`--face-rare`(`img/ai-face{,-rare}-{b,w}.svg`). 레어 돌은 `.stone.rare`(app.js `addStoneElement`가 `aiRare`를 보고 붙임, 방에서는 비어 있음). 마지막 수 표시는 `.stone.last-placed::after`라 얼굴은 `::before`를 쓴다.
+- PWA: `manifest.webmanifest`(이름 `오오목`, `start_url`·`scope` `./`), 아이콘 `img/icon-192.png`·`icon-512.png`·`icon-maskable-512.png`·`apple-touch-icon.png`. CSP에 `font-src 'self'`, `manifest-src 'self'`.
 
 ### 스크립트와 전역
 
@@ -46,6 +49,7 @@
 | `clock.js` | app.js | `clockStart`, `clockStop`, `clockMove`, `timeUp` |
 | `room.js` | clock.js | `TM`, `tmHostTimeUp` |
 | `room.js` | app.js | `TM`, `tmMe`, `tmVoteStart`, `myTurn`, `myStoneColor`, `tmMyTurn`, `tmTurnText`, `tmSend`, `tmHostMove`, `tmShowEnd`, `tmRematch`, `tmLeave`, `teamEntry`, `teamBack`, `teamJoin` |
+| `app.js` | tests/ui.e2e.mjs | 레어 얼굴 확률 `AI_RARE`(기본 0.05, 테스트가 1로 바꿈) |
 | `app.js` | clock.js | 상태 `gameMode`, `gameOver`, `currentPlayer`, `humanPlayer`, `aiPlayer`, `aiThinking`, `scores` · 함수 `announce`, `updateScores`, `updateTurn`, `showEndOverlay` |
 | `app.js` | room.js | 투표 알림 `voteNote` · 상태 `board`, `gameMode`, `gameOver`, `currentPlayer`, `humanPlayer`, `scores`, `lastPlaced`, `winningCells`, `RULE`, `BOARD_SIZE`, `stonesLayer` · 함수 `flashTurn`, `initBoard`, `isForbidden`, `checkWin`, `addStoneElement`, `refreshStones`, `coordName`, `ruleName`, `announce`, `updateScores`, `updateTurn`, `showOverlay`, `hideOverlay`, `closeOverlay`, `resultTitle`, `showEndOverlay`, `showDrawOverlay` |
 
