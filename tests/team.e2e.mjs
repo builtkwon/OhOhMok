@@ -4,8 +4,13 @@ const url = new URL('../index.html', import.meta.url).href;
 const b = await chromium.launch({ args: ['--disable-features=WebRtcHideLocalIpsWithMdns'] });
 const T0 = Date.now(), LOG = []; // peer/migration trace, printed only on failure
 const ok = (n, c) => { console.log(c ? 'PASS' : 'FAIL', n); if (!c) process.exitCode = 1; };
-const mk = async (name, rule) => {
+// photo: install a stub Profile (profile.js is built separately; docs/profile-stones.md §6.1)
+const mk = async (name, rule, photo) => {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
+  if (photo !== undefined) await ctx.addInitScript(src => {
+    let fn = null; window.__ph = { src, hide: false, stones: { 1: null, 2: null }, set(v, h = false) { this.src = v; this.hide = h; fn && fn(); } };
+    window.Profile = { photo: () => __ph.src, hideOthers: () => __ph.hide, onChange: f => { fn = f; }, setStone: (c, s) => { __ph.stones[c] = s; } };
+  }, photo);
   const p = await ctx.newPage(); p.ctx = ctx; p.errs = []; p.on('pageerror', e => p.errs.push(e.message));
   p.on('console', m => { if (m.text().startsWith('[tm]')) LOG.push(`${((Date.now() - T0) / 1000).toFixed(1)}s ${name} ${m.text().slice(5)}`); });
   await p.goto(url);
@@ -83,6 +88,28 @@ try {
   await Y.waitForFunction(() => gameOver && TM.result && TM.result.winner === 2 && TM.result.reason === 'time', null, { timeout: 15000 }); ok('blitz timeout: black loses', true);
   ok('loser sees time-out text', await X.waitForFunction(() => document.getElementById('modal-sub').textContent === '시간 초과로 졌습니다.', null, W).then(() => true));
   ok('no page errors (blitz)', X.errs.length + Y.errs.length === 0);
+  // photo stones: team rep = first player of each team; relay, late joiner, validation, host turn-off, hide, leave
+  const img = (c) => 'data:image/png;base64,' + c.repeat(8);
+  const st = (p) => p.evaluate(() => JSON.stringify(__ph.stones));
+  const want = (p, s) => p.waitForFunction(s => JSON.stringify(__ph.stones) === s, JSON.stringify(s), W);
+  const P = await mk('Pa', 'n', img('A')), Q = await mk('Qu', 'n', img('B')), R = await mk('Ro', 'n', img('C'));
+  await P.evaluate(() => teamCreate(1)); await P.waitForFunction(() => TM && TM.joined, null, W);
+  const pc = await P.evaluate(() => TM.code);
+  await join(Q, pc); await want(P, { 1: img('A'), 2: img('B') }); await want(Q, { 1: img('A'), 2: img('B') }); ok('avatars relayed both ways', true);
+  await join(R, pc); await want(R, { 1: img('A'), 2: img('B') }); ok('late joiner gets known avatars, 2nd black player is not rep', true);
+  ok('avatar not in snap', await R.evaluate(() => !JSON.stringify(TM.players).includes('base64')));
+  await Q.evaluate(s => __ph.set(s), img('D')); await want(R, { 1: img('A'), 2: img('D') }); ok('photo change relayed', true);
+  await Q.evaluate(() => tmSend({ type: 'avatar', src: 'javascript:alert(1)' })); await Q.evaluate(() => tmSend({ type: 'avatar', src: 'data:image/png;base64,A");x:url(y' }));
+  await R.waitForTimeout(800); ok('invalid avatar ignored', (await st(R)) === JSON.stringify({ 1: img('A'), 2: img('D') }));
+  ok('host sees turn-off button', await P.evaluate(() => document.querySelectorAll('#tl2 .av-off').length === 1 && !document.querySelector('#tl1 .av-off')));
+  await P.click('#tl2 .av-off'); await want(R, { 1: img('A'), 2: null }); ok('host turn-off reaches guests', true);
+  await Q.evaluate(s => __ph.set(s), img('E')); await R.waitForTimeout(800);
+  ok('turned-off player stays off', (await st(R)) === JSON.stringify({ 1: img('A'), 2: null }) && (await st(P)).endsWith('null}'));
+  ok('own photo still shows for turned-off player', (await st(Q)).includes(img('E')));
+  await R.evaluate(() => __ph.set(__ph.src, true)); await want(R, { 1: null, 2: null }); ok('hideOthers hides others', true);
+  await Q.evaluate(() => teamPick(1)); await want(Q, { 1: img('A'), 2: null }); ok('rep follows team change', true);
+  await P.evaluate(() => tmLeave()); ok('leaving clears stones', (await st(P)) === JSON.stringify({ 1: null, 2: null }));
+  ok('no page errors (avatar)', P.errs.length + Q.errs.length + R.errs.length === 0);
 } catch (e) {
   console.error(e); process.exitCode = 1;
   for (const p of [H, A, B, C]) console.log(p.isClosed() ? 'closed' : await p.evaluate(() => TM ? JSON.stringify({ name: TM.name, me: TM.me, role: TM.role, joined: TM.joined, migr: TM.migr, busy: TM.busy, peer: !!TM.peer, conn: !!TM.conn, hostId: TM.hostId, p: TM.players.map(x => x.name + x.online) }) : 'TM null').catch(e => String(e)));

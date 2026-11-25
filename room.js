@@ -48,7 +48,7 @@ function tmSid() {
 function tmBase(role, code) {
   return {role, code, me: tmSid(), name: TeamLogic.cleanName(document.getElementById('team-name').value) || 'Player',
     peer: null, conn: null, conns: {}, seen: {}, wipe: {}, until: {}, players: [], started: false, turn: null, result: null,
-    hostId: '', rule: RULE, lastSeen: Date.now(), hb: null, tick: null, rejoin: null, migr: null, busy: false, joined: false, sig: '', ann: '', endShown: false};
+    hostId: '', av: {}, stones: '', rule: RULE, lastSeen: Date.now(), hb: null, tick: null, rejoin: null, migr: null, busy: false, joined: false, sig: '', ann: '', endShown: false};
 }
 const tmMe = () => TM && TM.players.find(p => p.id === TM.me);
 const tmMyTeam = () => { const m = tmMe(); return m ? m.team : 1; };
@@ -97,6 +97,7 @@ function tmLeave() {
   document.getElementById('team-banner').textContent = '';
   document.getElementById('conn-status').style.display = 'none';
   clockStop();
+  if (typeof Profile !== 'undefined') { Profile.setStone(1, null); Profile.setStone(2, null); }
 }
 function copyTeamCode() {
   const el = document.getElementById('team-code-display'), code = TM && TM.code;
@@ -110,6 +111,7 @@ function teamCreate(team) {
   TM = tmBase('host', generateCode());
   TM.hostId = TM.me;
   TM.players = [{id: TM.me, name: TM.name, team, online: true}];
+  tmHookProfile(); if (TeamLogic.validAvatar(tmPhoto())) TM.av[TM.me] = tmPhoto();
   initBoard(); scores = {1: 0, 2: 0}; gameOver = false; updateScores();
   tmStatus('방 만드는 중...');
   tmOpenHostPeer(true);
@@ -157,6 +159,7 @@ function tmHostData(c, d) {
   TM.seen[id] = Date.now();
   if (d.type === 'team') tmHostPick(id, d.team);
   else if (d.type === 'move') tmHostMove(id, d);
+  else if (d.type === 'avatar') tmHostAvatar(id, d.src);
 }
 function tmHostHello(c, d) {
   const id = d.id;
@@ -173,6 +176,7 @@ function tmHostHello(c, d) {
   if (old && old !== c) { try { old.close(); } catch (e) {} }
   tmUpdateWipe();
   tmBroadcast();
+  for (const k of Object.keys(TM.av)) { try { c.send({type: 'avatar', id: k, src: TM.av[k]}); } catch (e) {} } // not in snap: 32KB each
 }
 function tmHostDrop(c) {
   const id = c._tid;
@@ -186,6 +190,23 @@ function tmHostDrop(c) {
 function tmHostPick(id, team) {
   const p = TM.players.find(x => x.id === id);
   if (p && !TM.started && TeamLogic.canPick(TM.players, id, team)) { p.team = team; tmBroadcast(); }
+}
+// src null = photo removed. Host-off players stay off until the room ends.
+// shortcut: avatarOff lives on the player, so a lobby leave+rejoin (new player entry) clears it; host can turn it off again.
+function tmHostAvatar(id, src) {
+  const p = TM.players.find(x => x.id === id);
+  if (!p || p.avatarOff || (src !== null && !TeamLogic.validAvatar(src))) return;
+  tmAvatarRelay(id, src);
+}
+function tmAvatarRelay(id, src) {
+  if (src) TM.av[id] = src; else delete TM.av[id];
+  for (const k of Object.keys(TM.conns)) { try { TM.conns[k].send({type: 'avatar', id, src}); } catch (e) {} }
+  tmStones();
+}
+function tmAvatarOff(id) {
+  const p = TM && TM.role === 'host' && TM.players.find(x => x.id === id);
+  if (!p || id === TM.me) return;
+  p.avatarOff = true; tmAvatarRelay(id, null); tmBroadcast();
 }
 function tmHostStart() {
   if (TM.started || !TeamLogic.canStart(TM.players).ok) return;
@@ -278,7 +299,8 @@ function teamJoin() {
   tmStatus('연결 중...');
   const t = setTimeout(() => { if (TM && !TM.joined) tmFatal('방이 응답하지 않습니다.'); }, 9000);
   TM.joinTimer = t;
-  tmGuestConnect(() => tmSend({type: 'hello', id: TM.me, name: TM.name}), (err) => { clearTimeout(t); tmFatal(errText(err)); });
+  tmHookProfile();
+  tmGuestConnect(tmHello, (err) => { clearTimeout(t); tmFatal(errText(err)); });
 }
 // onOpen/onFail fire at most once. Used for first join, rejoin and migration.
 function tmGuestConnect(onOpen, onFail) {
@@ -310,6 +332,11 @@ function tmGuestConnect(onOpen, onFail) {
 function tmGuestData(d) {
   if (!d || typeof d.type !== 'string') return;
   if (d.type === 'reject') { tmFatal(typeof d.msg === 'string' ? d.msg.slice(0, 60) : '입장할 수 없습니다.'); return; }
+  if (d.type === 'avatar') {
+    if (typeof d.id !== 'string' || (d.src !== null && !TeamLogic.validAvatar(d.src))) return;
+    if (d.src) TM.av[d.id] = d.src; else delete TM.av[d.id];
+    return tmStones();
+  }
   if (d.type !== 'snap' || !TeamLogic.validSnap(d)) return;
   const first = !TM.joined;
   TM.joined = true; clearTimeout(TM.joinTimer);
@@ -330,6 +357,36 @@ function tmGuestData(d) {
   winningCells = Array.isArray(d.winningCells) ? d.winningCells.filter(c => Array.isArray(c) && c.length === 2 && c.every(Number.isInteger)) : [];
   tmRender();
 }
+function tmHello() {
+  tmSend({type: 'hello', id: TM.me, name: TM.name});
+  if (tmPhoto()) tmSend({type: 'avatar', src: tmPhoto()});
+}
+
+// ── photo stones (docs/profile-stones.md §4-5). Profile (profile.js) is optional. ──
+const tmPhoto = () => typeof Profile !== 'undefined' ? Profile.photo() : null;
+let tmHooked = false;
+function tmHookProfile() {
+  if (tmHooked || typeof Profile === 'undefined') return;
+  tmHooked = true;
+  Profile.onChange(() => {
+    if (!TM) return;
+    if (TM.role === 'host') tmHostAvatar(TM.me, tmPhoto() || null); else tmSend({type: 'avatar', src: tmPhoto() || null});
+    tmStones();
+  });
+}
+// Team photo = the team's first player in join order. My own photo always shows; others' obey hideOthers.
+function tmStones() {
+  if (!TM || typeof Profile === 'undefined') return;
+  const hide = Profile.hideOthers(), src = [1, 2].map(t => {
+    const r = TM.players.find(p => p.team === t);
+    return !r ? null : r.id === TM.me ? tmPhoto() : hide ? null : TM.av[r.id] || null;
+  });
+  const sig = JSON.stringify(src);
+  if (sig === TM.stones) return;
+  TM.stones = sig;
+  Profile.setStone(1, src[0]); Profile.setStone(2, src[1]);
+}
+
 // Connection to the host is gone: try to reconnect; the successor re-opens the room itself.
 function tmHostLost() {
   if (!TM || TM.role !== 'guest' || TM.migr) return;
@@ -344,7 +401,7 @@ function tmMigrateStep() {
   const cand = TeamLogic.successor(TM.players, TM.hostId, Math.floor((Date.now() - TM.migr.since) / TM_PICK_MS));
   if (!cand) { tmFatal('방이 사라졌습니다.'); return; }
   TM.busy = true;
-  tmGuestConnect(() => { TM.busy = false; tmSend({type: 'hello', id: TM.me, name: TM.name}); }, (err) => {
+  tmGuestConnect(() => { TM.busy = false; tmHello(); }, (err) => {
     if (!TM) return;
     TM.busy = false;
     // The broker reports peer-unavailable only when its queue for the dead id expires, often after our 6 s timeout.
@@ -384,7 +441,7 @@ function tmBanner() {
 function tmRender() {
   if (!TM || !TM.joined) return;
   currentPlayer = TM.turn ? TM.turn.team : 1;
-  tmDrawStones();
+  tmDrawStones(); tmStones();
   updateTurn(); updateScores(); tmBadges(); tmBanner(); clockDraw();
   if (lastPlaced && TM.ann !== lastPlaced.row + ',' + lastPlaced.col + board[lastPlaced.row][lastPlaced.col]) {
     TM.ann = lastPlaced.row + ',' + lastPlaced.col + board[lastPlaced.row][lastPlaced.col];
@@ -454,6 +511,13 @@ function tmLobby() {
       const li = document.createElement('li');
       li.textContent = (p.id === TM.hostId ? '👑 ' : '') + p.name + (p.id === TM.me ? ' (나)' : '') + (p.online ? '' : ' (끊김)');
       if (p.id === TM.me) li.className = 'me'; else if (!p.online) li.className = 'off';
+      if (host && p.id !== TM.me && TM.av[p.id]) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'level-chip av-off'; b.textContent = '사진 끄기';
+        b.setAttribute('aria-label', p.name + ' 사진 끄기');
+        b.onclick = () => tmAvatarOff(p.id);
+        li.append(' ', b);
+      }
       ul.appendChild(li);
     });
     const b = document.getElementById('tb' + t);
