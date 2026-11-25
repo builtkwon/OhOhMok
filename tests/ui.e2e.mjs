@@ -95,7 +95,7 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   ok(name+' 5분 clock', /⏱ [45]:\d\d/.test(await p.textContent('#clock-1')));
   await p.evaluate(()=>{CLK.t0-=300500;}); await p.waitForTimeout(300);
   ok(name+' main time used up -> 초읽기', /초읽기 \d+초 · 3회/.test(await p.textContent('#clock-1')) && await p.evaluate(()=>!gameOver));
-  const fonts=await p.evaluate(()=>getComputedStyle(document.body).fontFamily); 
+  ok(name+" Galmuri on body + buttons, font loaded", await p.evaluate(async()=>{await document.fonts.ready;return [document.body,document.querySelector(".btn"),document.querySelector(".level-chip")].every(e=>getComputedStyle(e).fontFamily.startsWith("Galmuri11"))&&document.fonts.check("12px Galmuri11")&&document.fonts.check("700 12px Galmuri11")&&[...document.fonts].some(f=>f.family==="Galmuri11"&&f.status==="loaded");}));
   ok(name+' no page errors '+JSON.stringify(errs), errs.length===0);
   await ctx.close();
 }

@@ -167,6 +167,7 @@ function initBoard() {
   drawBoard();
 }
 
+const BOARD_FONT = "700 12px Galmuri11, sans-serif";
 function drawBoard() {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
@@ -180,7 +181,7 @@ function drawBoard() {
   ctx.fillStyle = '#5c3f18';
   for (const [r,c] of stars) { ctx.beginPath(); ctx.arc(MARGIN+c*CELL, MARGIN+r*CELL, 4, 0, Math.PI*2); ctx.fill(); }
   ctx.fillStyle = '#3b2810'; // coordinates: dark enough to read on the wood
-  ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center';
+  ctx.font = BOARD_FONT; ctx.textAlign = 'center';
   const cols = 'ABCDEFGHJKLMNOP';
   for (let i = 0; i < BOARD_SIZE; i++) {
     ctx.fillText(cols[i], MARGIN+i*CELL, 14);
@@ -311,7 +312,7 @@ async function flipTable() {
   const B = board, wrap = document.querySelector('.board-wrap'), rm = matchMedia('(prefers-reduced-motion: reduce)').matches, rnd = (a) => (Math.random() - 0.5) * 2 * a;
   const say = document.body.appendChild(document.createElement('div'));
   say.innerHTML = '<img src="img/wonjun-rage.jpg" alt="" style="display:block;max-width:80vw;max-height:45vh;border-radius:10px;box-shadow:0 0 40px #c0392b;margin:0 auto 10px"><div>상 엎어!! (╯°□°)╯︵ ┻━┻</div>';
-  say.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;pointer-events:none;text-align:center;font:800 clamp(1.4rem,6vw,2.6rem)/1.2 system-ui,sans-serif;color:#fff;text-shadow:0 0 12px #c0392b,0 2px 6px #000;white-space:nowrap';
+  say.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;pointer-events:none;text-align:center;font:700 24px/1.2 var(--font-sans);color:#fff;text-shadow:0 0 12px #c0392b,0 2px 6px #000;white-space:nowrap';
   announce('JOONSAMA가 상을 엎었습니다. 대국이 처음부터 다시 시작됩니다');
   if (rm) await new Promise(r => setTimeout(r, 1500));
   else {
@@ -624,4 +625,5 @@ if (hasProfile()) {
 // Init
 setTheme(document.documentElement.dataset.theme);
 initBoard(); updateTurn(); updateScores(); scaleBoard();
+document.fonts.load(BOARD_FONT).then(drawBoard); // coordinates were drawn with the fallback before the pixel font arrived
 showOverlay('mode-overlay');
