@@ -13,7 +13,7 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   p.on('pageerror',e=>errs.push(e.message)); p.on('response',r=>{if(r.status()>=400)bad.push(r.url())}); p.on('requestfailed',r=>{if(!(noProfile&&r.url().endsWith('/profile.js')))bad.push(r.url())});
   const ext=[]; p.on('request',r=>{if(!/^(file|data|blob):/.test(r.url()))ext.push(r.url())});
   const dialogs=[]; p.on('dialog',d=>{dialogs.push(d.message());d.message().includes('항복')?d.accept():d.dismiss()}); // accept only the resign confirm
-  await p.goto(url); await p.waitForTimeout(300);
+  await p.goto(url); await p.waitForTimeout(300); await p.evaluate(()=>{AI_RARE=0;}); // no random rare faces (5%) in face checks
   ok(name+' no external requests/failures', bad.length===0&&ext.length===0); if(bad.length||ext.length)console.log(bad,ext);
   ok(name+' name 오오목 (title, h1, mode select) + og description', await p.evaluate(()=>document.title==='오오목'&&document.querySelector('h1').firstChild.textContent==='오오목'&&document.getElementById('mode-title').textContent==='오오목'
     &&['meta[property="og:description"]','meta[name=description]'].every(s=>document.querySelector(s).content==='히든 미션 오오목을 완수하라!')));
@@ -59,7 +59,9 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   // AI pixel face (AI = white here): on the AI's board/panel stones only, rare forced via AI_RARE, none for the boss or in rooms
   const face=(sel)=>p.evaluate(s=>{const e=document.querySelector(s),b=getComputedStyle(e,'::before');return b.content==='none'?'':(b.backgroundImage.match(/ai-face[\w-]*/)||['?'])[0];},sel);
   ok(name+' AI stone + AI panel stone wear the face, mine do not', await face('#stones-layer .white-stone')==='ai-face-b'&&await face('.player-stone.white')==='ai-face-b'&&await face('#stones-layer .black-stone')===''&&await face('.player-stone.black')==='');
-  await p.evaluate(()=>{AI_RARE=1;currentPlayer=aiPlayer;doPlaceStone(0,0,false);AI_RARE=0.05;refreshStones();});
+  await p.evaluate(()=>{AI_RARE=1;currentPlayer=aiPlayer;doPlaceStone(0,0,false);AI_RARE=0;refreshStones();});
+  ok(name+' rare face blinks (animated)', await p.$eval('.stone[data-row="0"][data-col="0"]', e=>getComputedStyle(e,'::before').animationName)==='rareBlink');
+  await p.addStyleTag({content:'.stone.rare::before{animation-play-state:paused!important;animation-delay:0s!important}'}); // freeze on the open-eyes frame
   ok(name+' rare face forced, kept after a redraw', await face('.stone[data-row="0"][data-col="0"]')==='ai-face-rare-b'&&await face('#stones-layer .white-stone:not(.rare)')==='ai-face-b');
   ok(name+' no face for the boss or in rooms', await p.evaluate(()=>{const s=[aiLevel,gameMode],r=[];setLevel('boss');applyBoss();r.push(document.body.className);gameMode='team';setLevel('hard');applyBoss();r.push(document.body.className);[aiLevel,gameMode]=s;applyBoss();return r.every(c=>!/\bai-\d/.test(c))&&r[0].includes('boss-2')&&document.body.classList.contains('ai-2');})&&await face('#stones-layer .white-stone:not(.rare)')==='ai-face-b');
   // draw / resign (docs/draw-resign.md). Boards set by hand; the human (black) is to move.
