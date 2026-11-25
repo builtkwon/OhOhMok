@@ -99,7 +99,7 @@
   // Vote (kind 'draw' | 'resign'): who to ask now, all at once = online players not yet agreed
   // (draw: everyone, resign: the proposer's team). [] = everyone online agreed.
   // null = a draw the other team can no longer agree to (nobody of it online or agreed): refuse / cancel.
-  const VOTE_MAX = 2; // offers per player per game, per kind
+  const VOTE_MAX = 2; // draw offers per player per game (resign has no limit)
   function voteAsk(ps, kind, fromTeam, yes) {
     const ask = ps.filter(p => p.online && (kind === 'draw' || p.team === fromTeam) && !yes.includes(p.id)).map(p => p.id);
     const foe = ps.some(p => p.team !== fromTeam && (yes.includes(p.id) || ask.includes(p.id)));

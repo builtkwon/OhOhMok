@@ -28,7 +28,7 @@
 
 모듈 사이에 걸친 이름이다. 바꾸려면 TODO-CONTRACT.md로 제안한다(필수).
 
-- 방 메시지(`type`): `hello`, `team`, `move`, `ping`, `avatar {src}`, `vote-start {kind}`, `vote-reply {ok}`(G→H) · `snap`, `reject`, `ping`, `avatar {id, src}`, `vote`(H→G). 시계는 `snap` 안 `clock`, 제안 횟수는 `offers {draw, resign}`, `result.reason`은 `five`·`time`·`wipe`·`resign`·`agreed`. 형식: [docs/team-mode.md#메시지](../team-mode.md#메시지).
+- 방 메시지(`type`): `hello`, `team`, `move`, `ping`, `avatar {src}`, `vote-start {kind}`, `vote-reply {ok}`(G→H) · `snap`, `reject`, `ping`, `avatar {id, src}`, `vote`(H→G). 시계는 `snap` 안 `clock`, 무승부 제안 횟수는 `offers {draw}`(항복은 세지 않음), 투표 취소 `vote {cancelled, why, by}`, `result.reason`은 `five`·`time`·`wipe`·`resign`·`agreed`. 형식: [docs/team-mode.md#메시지](../team-mode.md#메시지).
 - 저장 키: localStorage `ohohmok-level`, `ohohmok-mem-<난이도>`, sessionStorage `ohohmok-tid`, 사진 `ohohmok-profile`·`ohohmok-hide-avatars`(profile.js), 테마 `ohohmok-theme`(`light`/`dark`, index.html `<head>`·app.js). 첫 실행 때 ZESTMOK의 `zestmok-level`·`zestmok-mem-*`를 새 키가 없을 때만 복사하고 옛 키는 지우지 않는다(`app.js`, [ADR 0001](../adr/0001-ohohmok-repo-split.md)).
 - PeerJS 방 id 접두사 `ohohmok-team-`(`room.js` `TEAM_PREFIX`): ZESTMOK(`zestmok-team-`)과 방이 섞이지 않는다.
 - CSS 변수: `style.css`의 `:root`. 돌: 색 `--stone-black`/`--stone-white`, 사진 `--stone-black-img`/`--stone-white-img`(기본 없음, [profile-stones.md §1](../profile-stones.md)). 테마: `--accent`(`--accent-rgb`, `--accent-light`), `--modal-bg`, `--inset-bg`, `--scrim`, `--danger`, 라이트 값은 `:root[data-theme="light"]`. room.js가 색을 쓸 때도 이 토큰을 쓴다.
@@ -47,14 +47,14 @@
 | `room.js` | clock.js | `TM`, `tmHostTimeUp` |
 | `room.js` | app.js | `TM`, `tmMe`, `tmVoteStart`, `myTurn`, `myStoneColor`, `tmMyTurn`, `tmTurnText`, `tmSend`, `tmHostMove`, `tmShowEnd`, `tmRematch`, `tmLeave`, `teamEntry`, `teamBack`, `teamJoin` |
 | `app.js` | clock.js | 상태 `gameMode`, `gameOver`, `currentPlayer`, `humanPlayer`, `aiPlayer`, `aiThinking`, `scores` · 함수 `announce`, `updateScores`, `updateTurn`, `showEndOverlay` |
-| `app.js` | room.js | 상태 `board`, `gameMode`, `gameOver`, `currentPlayer`, `humanPlayer`, `scores`, `lastPlaced`, `winningCells`, `RULE`, `BOARD_SIZE`, `stonesLayer` · 함수 `flashTurn`, `initBoard`, `isForbidden`, `checkWin`, `addStoneElement`, `refreshStones`, `coordName`, `ruleName`, `announce`, `updateScores`, `updateTurn`, `showOverlay`, `hideOverlay`, `closeOverlay`, `resultTitle`, `showEndOverlay`, `showDrawOverlay` |
+| `app.js` | room.js | 투표 알림 `voteNote` · 상태 `board`, `gameMode`, `gameOver`, `currentPlayer`, `humanPlayer`, `scores`, `lastPlaced`, `winningCells`, `RULE`, `BOARD_SIZE`, `stonesLayer` · 함수 `flashTurn`, `initBoard`, `isForbidden`, `checkWin`, `addStoneElement`, `refreshStones`, `coordName`, `ruleName`, `announce`, `updateScores`, `updateTurn`, `showOverlay`, `hideOverlay`, `closeOverlay`, `resultTitle`, `showEndOverlay`, `showDrawOverlay` |
 
 `index.html`의 인라인 `onclick`이 부르는 전역: room.js `teamCreate`, `teamJoin`, `teamPick`, `teamStart`, `teamBack`, `copyTeamCode`, `tmVoteReply` · app.js `offerDraw`, `resign`, `selectMode`, `selectRule`, `ruleBack`, `setLevel`, `selectColor`, `newGame`, `rematch`, `resetScore`, `closeOverlay`, `toggleTheme`, `toggleProfileMenu`, `profileLogin`, `profileUpload` · profile.js `Profile.clearUpload`, `Profile.setHideOthers`.
 
 ### 여러 모듈이 만지는 DOM id
 
 - 결과 창 `overlay`, `modal-stone`, `modal-winner`, `modal-sub`: app.js(AI)·room.js(`tmShowEnd`)
-- 무승부·항복 `game-actions`, `draw-btn`, `resign-btn`: app.js만. 투표 창 `vote-box`, `vote-text`, `vote-btns`: room.js만
+- 무승부·항복 `game-actions`, `draw-btn`, `resign-btn`: app.js만. 투표 창 `vote-box`, `vote-text`, `vote-btns`: room.js만. 투표 알림 `vote-note`: app.js `voteNote`만 씀(room.js는 함수로 부름)
 - 연결 표시 `conn-status`: room.js가 켜고 app.js가 끔(`conn-dot`, `conn-text`는 room.js만)
 - 방 코드 입력 `team-code`: room.js가 읽고 app.js가 Enter 키를 붙임
 - 시계 `clock-1`, `clock-2`: clock.js만 씀

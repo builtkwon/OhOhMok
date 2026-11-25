@@ -49,7 +49,7 @@ function tmSid() {
 function tmBase(role, code) {
   return {role, code, me: tmSid(), name: TeamLogic.cleanName(document.getElementById('team-name').value) || 'Player',
     peer: null, conn: null, conns: {}, seen: {}, wipe: {}, until: {}, players: [], started: false, turn: null, result: null,
-    hostId: '', av: {}, offers: {draw: {}, resign: {}}, vote: null, avAt: {}, stones: '', rule: RULE, lastSeen: Date.now(), hb: null, tick: null, rejoin: null, migr: null, busy: false, joined: false, sig: '', ann: '', endShown: false};
+    hostId: '', av: {}, offers: {draw: {}}, vote: null, avAt: {}, stones: '', rule: RULE, lastSeen: Date.now(), hb: null, tick: null, rejoin: null, migr: null, busy: false, joined: false, sig: '', ann: '', endShown: false};
 }
 const tmMe = () => TM && TM.players.find(p => p.id === TM.me);
 const tmMyTeam = () => { const m = tmMe(); return m ? m.team : 1; };
@@ -222,7 +222,7 @@ function tmAvatarOff(id) {
 function tmHostStart() {
   if (TM.started || !TeamLogic.canStart(TM.players).ok) return;
   initBoard(); gameOver = false;
-  TM.started = true; TM.result = null; TM.turn = {team: 1, n: {1: 0, 2: 0}}; TM.offers = {draw: {}, resign: {}};
+  TM.started = true; TM.result = null; TM.turn = {team: 1, n: {1: 0, 2: 0}}; TM.offers = {draw: {}};
   clockStart(TM.rule);
   tmBroadcast();
 }
@@ -278,21 +278,21 @@ let TM_VOTE_MS = 20000; // let: the e2e test shortens it
 function tmHostVoteStart(id, kind) {
   const p = TM.players.find(x => x.id === id);
   if (!p || !TM.started || gameOver || TM.vh || (kind !== 'draw' && kind !== 'resign') || (kind === 'draw' && TM.turn.team !== p.team)) return;
-  const ask = TeamLogic.voteAsk(TM.players, kind, p.team, [id]), used = TM.offers[kind][id] || 0;
+  const ask = TeamLogic.voteAsk(TM.players, kind, p.team, [id]), used = TM.offers.draw[id] || 0;
   if (!ask) { // nobody of the other team online: it cannot agree
     const m = {type: 'vote', kind, from: id, cancelled: true, why: 'nofoe'};
     if (id === TM.me) tmVoteView(m); else { try { TM.conns[id].send(m); } catch (e) {} }
     return;
   }
-  if (ask.length) { if (used >= TeamLogic.VOTE_MAX) return; TM.offers[kind][id] = used + 1; } // a solo-team resign is not counted
-  TM.vh = {kind, from: id, team: p.team, yes: [id], ask: [], ends: Date.now() + TM_VOTE_MS, timer: setTimeout(() => tmVoteEnd(false), TM_VOTE_MS)};
+  if (kind === 'draw') { if (used >= TeamLogic.VOTE_MAX) return; TM.offers.draw[id] = used + 1; } // resign has no limit
+  TM.vh = {kind, from: id, team: p.team, yes: [id], ask: [], ends: Date.now() + TM_VOTE_MS, timer: setTimeout(() => tmVoteEnd(false, 'timeout'), TM_VOTE_MS)};
   tmBroadcast(); // offers count
   tmVoteCheck();
 }
 function tmHostVoteReply(id, ok) {
   const V = TM.vh;
   if (!V || !V.ask.includes(id)) return;
-  if (!ok) return tmVoteEnd(false);
+  if (!ok) return tmVoteEnd(false, 'refused', id);
   V.yes.push(id); tmVoteCheck();
 }
 // after every reply or drop: ask whoever is left (draw: everyone online, resign: own team); nobody left = passed
@@ -300,16 +300,17 @@ function tmVoteCheck() {
   const V = TM.vh;
   if (!V) return;
   const ask = TeamLogic.voteAsk(TM.players, V.kind, V.team, V.yes);
-  if (!ask) return tmVoteEnd(false); // the other team left mid-vote
+  if (!ask) return tmVoteEnd(false, 'left'); // the other team left mid-vote
   V.ask = ask;
   if (!ask.length) return tmVoteEnd(true);
   tmVoteMsg({type: 'vote', kind: V.kind, from: V.from, ask: V.ask, yes: V.yes, ends: V.ends - Date.now()});
 }
-function tmVoteEnd(passed) {
+// not passed = cancelled, why: 'refused' (by = who) | 'timeout' | 'left' | none (game ended some other way: no note)
+function tmVoteEnd(passed, why, by) {
   const V = TM.vh;
   if (!V) return;
   clearTimeout(V.timer); TM.vh = null;
-  if (!passed) return tmVoteMsg({type: 'vote', kind: V.kind, from: V.from, cancelled: true});
+  if (!passed) return tmVoteMsg({type: 'vote', kind: V.kind, from: V.from, cancelled: true, why, by});
   gameOver = true;
   if (V.kind === 'draw') TM.result = {draw: true, reason: 'agreed'};
   else { const w = 3 - V.team; scores[w]++; TM.result = {winner: w, reason: 'resign'}; }
@@ -323,7 +324,11 @@ function tmVoteMsg(m) {
 function tmVoteView(d) {
   if (d.cancelled) {
     TM.vote = null; tmVoteSet();
-    return flashTurn(d.why === 'nofoe' ? '상대 팀에 접속한 사람이 없어 무승부를 제안할 수 없습니다' : (d.kind === 'draw' ? '무승부' : '항복') + ' 제안이 취소되었습니다');
+    if (d.why === 'nofoe') return flashTurn('상대 팀에 접속한 사람이 없어 무승부를 제안할 수 없습니다');
+    const what = d.kind === 'draw' ? '무승부 제안' : '항복', who = TM.players.find(p => p.id === d.by);
+    const m = {refused: `${who ? who.name : '누군가'}님이 ${what}을 거절했습니다`, timeout: `응답이 없어 ${what}이 취소되었습니다`, left: `참가자가 나가 ${what}이 취소되었습니다`}[d.why];
+    if (typeof m === 'string' && !gameOver) voteNote(m + ' — 게임이 계속됩니다!'); // tells everyone, not just the proposer
+    return;
   }
   if ((d.kind !== 'draw' && d.kind !== 'resign') || typeof d.from !== 'string' || !Array.isArray(d.ask) || !Array.isArray(d.yes) || !Number.isFinite(d.ends)) return;
   const str = (a) => a.filter(x => typeof x === 'string');
@@ -437,7 +442,7 @@ function tmGuestData(d) {
   const r = d.result;
   TM.result = r && typeof r === 'object' ? {winner: r.winner === 1 || r.winner === 2 ? r.winner : 0, reason: ['wipe', 'time', 'resign', 'agreed'].includes(r.reason) ? r.reason : 'five', draw: !!r.draw, void: !!r.void} : null;
   const cnt = (o) => o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).filter(([, v]) => Number.isInteger(v))) : {};
-  TM.offers = {draw: cnt(d.offers && d.offers.draw), resign: cnt(d.offers && d.offers.resign)};
+  TM.offers = {draw: cnt(d.offers && d.offers.draw)};
   TM.until = {};
   (Array.isArray(d.cd) ? d.cd : []).forEach(x => { if ((x.team === 1 || x.team === 2) && Number.isFinite(x.ms)) TM.until[x.team] = Date.now() + x.ms; });
   board = d.board; scores = {1: d.scores[1], 2: d.scores[2]}; gameOver = !!d.gameOver;
