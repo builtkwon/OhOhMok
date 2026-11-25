@@ -115,10 +115,10 @@ assert.strictEqual(T.cleanName(null), '');
   // edge: windows must fit inside the board (4 cells at the edge are not a window)
   const edge = full.map(r => r.slice()); edge[0] = [0, 0, 0, 0, 2, 1, 1, 2, 2, 1, 1, 2, 2, 1, 1];
   assert.strictEqual(bw(edge, 1), -1);
-  // vote: proposer's team first (online only, minus who said yes), then the opponents for a draw; [] = passed
+  // vote: everyone online asked at once (minus who said yes) for a draw, own team only for resign; [] = passed
   const ps = [P('a', 1), P('b', 2), P('c', 1), P('d', 2, false), P('e', 2)];
-  assert.deepStrictEqual(T.voteAsk(ps, 'draw', 1, ['a']), ['c']);
-  assert.deepStrictEqual(T.voteAsk(ps, 'draw', 1, ['a', 'c']), ['b', 'e'], 'then opponents, offline d excluded');
+  assert.deepStrictEqual(T.voteAsk(ps, 'draw', 1, ['a']), ['b', 'c', 'e'], 'draw: all at once, offline d excluded');
+  assert.deepStrictEqual(T.voteAsk(ps, 'draw', 1, ['a', 'c']), ['b', 'e']);
   assert.deepStrictEqual(T.voteAsk(ps, 'draw', 1, ['a', 'c', 'b']), ['e']);
   assert.deepStrictEqual(T.voteAsk(ps, 'draw', 1, ['a', 'c', 'b', 'e']), [], 'everyone agreed');
   assert.deepStrictEqual(T.voteAsk(ps, 'resign', 2, ['b']), ['e'], 'resign: own team only');

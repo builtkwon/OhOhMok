@@ -96,16 +96,11 @@
     return best;
   }
   const noMoves = (b) => bestWindow(b, 1) < 0 && bestWindow(b, 2) < 0;
-  // Vote (kind 'draw' | 'resign'): who to ask now = online members of the proposer's team not yet agreed,
-  // then (draw only) of the other team. [] = everyone online agreed.
+  // Vote (kind 'draw' | 'resign'): who to ask now, all at once = online players not yet agreed
+  // (draw: everyone, resign: the proposer's team). [] = everyone online agreed.
   const VOTE_MAX = 2; // offers per player per game, draw + resign together
-  function voteAsk(ps, kind, fromTeam, yes) {
-    for (const t of kind === 'draw' ? [fromTeam, 3 - fromTeam] : [fromTeam]) {
-      const ask = members(ps, t).map(p => p.id).filter(id => !yes.includes(id));
-      if (ask.length) return ask;
-    }
-    return [];
-  }
+  const voteAsk = (ps, kind, fromTeam, yes) =>
+    ps.filter(p => p.online && (kind === 'draw' || p.team === fromTeam) && !yes.includes(p.id)).map(p => p.id);
 
   const api = { MAX_PLAYERS, MAX_TEAM, WIPE_MS, mover, advance, wiped, canPick, canStart, autoTeam, successor, cleanName, validMove, validSnap, validAvatar, BYO_MS, BYO_N, validRule, clockInit, budget, spend, view, validClock, bestWindow, noMoves, VOTE_MAX, voteAsk };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

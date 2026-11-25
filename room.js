@@ -290,7 +290,7 @@ function tmHostVoteReply(id, ok) {
   if (!ok) return tmVoteEnd(false);
   V.yes.push(id); tmVoteCheck();
 }
-// after every reply or drop: ask whoever is left (proposer's team, then the other team for a draw); nobody left = passed
+// after every reply or drop: ask whoever is left (draw: everyone online, resign: own team); nobody left = passed
 function tmVoteCheck() {
   const V = TM.vh;
   if (!V) return;

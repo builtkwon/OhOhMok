@@ -105,18 +105,17 @@ try {
   await Wo.evaluate(() => tmSend({ type: 'vote-start', kind: 'draw' })); await V.waitForTimeout(800);
   ok('draw offer off-turn ignored', await V.evaluate(() => !TM.vh && !TM.offers[TM.players[1].id]));
   ok('draw button only for the team to move', await Zu.evaluate(() => !document.getElementById('draw-btn').hidden) && await Wo.evaluate(() => document.getElementById('draw-btn').hidden));
-  // 1) draw passes: Zu offers -> teammate Va first, then Wo
+  // 1) draw passes: Zu offers -> Va and Wo asked at the same time
   await Zu.evaluate(() => offerDraw());
-  ok('draw: proposer team asked first', await asked(V) && await waiting(Wo) && await waiting(Zu));
+  ok('draw: everyone else asked at once', await asked(V) && await asked(Wo) && await waiting(Zu));
   await V.click('#vote-btns .btn >> nth=0');
-  ok('draw: then the other team', await asked(Wo) && await waiting(V));
+  ok('draw: still waiting for Wo', await asked(Wo) && await vend(V, () => document.getElementById('vote-btns').hidden && !gameOver));
   await Wo.click('#vote-btns .btn >> nth=0');
   for (const p of [V, Wo, Zu]) ok('draw agreed on ' + await p.evaluate(() => TM.name), await vend(p, () => gameOver && TM.result.draw && TM.result.reason === 'agreed' && document.getElementById('modal-sub').textContent.includes('합의 무승부') && document.getElementById('vote-box').hidden));
   await V.evaluate(() => tmRematch()); await V.waitForTimeout(500); await start();
   ok('offers reset each game', await V.evaluate(() => Object.keys(TM.offers).length === 0));
   // 2) draw refused by the other team
-  await V.evaluate(() => offerDraw()); await asked(Zu); await Zu.click('#vote-btns .btn >> nth=0');
-  await asked(Wo); await Wo.click('#vote-btns .btn >> nth=1');
+  await V.evaluate(() => offerDraw()); await asked(Zu); await asked(Wo); await Wo.click('#vote-btns .btn >> nth=1'); // one refusal is enough
   ok('draw refused: cancelled, game goes on', await vend(V, () => !TM.vh && !gameOver && document.getElementById('vote-box').hidden) && await vend(Zu, () => document.getElementById('vote-box').hidden && !gameOver));
   // 3) timeout (shortened) cancels; Va's 2 offers are then used up
   await V.evaluate(() => { TM_VOTE_MS = 1500; offerDraw(); });
