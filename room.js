@@ -277,7 +277,7 @@ function tmWipeFire(t) {
 let TM_VOTE_MS = 20000; // let: the e2e test shortens it
 function tmHostVoteStart(id, kind) {
   const p = TM.players.find(x => x.id === id);
-  if (!p || !TM.started || gameOver || TM.vh || (kind !== 'draw' && kind !== 'resign') || (kind === 'draw' && TM.turn.team !== p.team)) return;
+  if (!p || !TM.started || gameOver || TM.vh || (kind !== 'draw' && kind !== 'resign')) return; // draw: any turn
   const ask = TeamLogic.voteAsk(TM.players, kind, p.team, [id]), used = TM.offers.draw[id] || 0;
   if (!ask) { // nobody of the other team online: it cannot agree
     const m = {type: 'vote', kind, from: id, cancelled: true, why: 'nofoe'};
@@ -344,7 +344,7 @@ function tmVoteText() {
   const who = TM.players.find(p => p.id === V.from), mine = V.ask.includes(TM.me);
   const s = Math.max(0, Math.ceil((V.until - Date.now()) / 1000));
   // yes includes the proposer, ask = who has not answered yet (offline players drop out of both counts)
-  document.getElementById('vote-text').textContent = `${who ? who.name : '?'}님의 ${V.kind === 'draw' ? '무승부' : '항복'} 제안 · 동의 ${V.yes.length}/${V.yes.length + V.ask.length} — ${mine ? '동의하나요?' : '응답 기다리는 중'} (${s}초)`;
+  document.getElementById('vote-text').textContent = `${who ? who.name : '?'}님의 ${V.kind === 'draw' ? '무승부' : '항복'} 제안 · 동의 ${V.yes.length}/${V.yes.length + V.ask.length} (${s}초)`;
   document.getElementById('vote-btns').hidden = !mine;
 }
 function tmVoteStart(kind) { if (!TM) return; if (TM.role === 'host') tmHostVoteStart(TM.me, kind); else tmSend({type: 'vote-start', kind}); }

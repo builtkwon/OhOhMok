@@ -41,6 +41,8 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
     const r=document.getElementById('name-black').textContent==='<b>홍</b> 나'&&!document.querySelector('#name-black b')&&document.getElementById('turn-text').textContent==='<b>홍</b> 차례';
     [Profile.signedIn,Profile.name]=s;updateBadges();updateTurn();return r;}));
   ok(name+' draw + resign usable on my turn', await p.evaluate(()=>['draw-btn','resign-btn'].every(id=>{const b=document.getElementById(id);return !b.hidden&&!b.disabled;})));
+  ok(name+' action row in the panel (mobile: below the cards), no horizontal scroll', await p.evaluate(m=>{const r=(id)=>document.getElementById(id).getBoundingClientRect(),d=r('draw-btn');
+    return !!document.querySelector('.panel #game-actions #draw-btn')&&document.documentElement.scrollWidth<=innerWidth&&d.right<=innerWidth&&(!m||d.top>=r('card-white').bottom&&r('resign-btn').right<=r('btn-reset').right+1);},name==='mobile'));
   await p.focus('#board-click'); await p.keyboard.press('Tab').catch(()=>{}); await p.focus('#board-click');
   await p.keyboard.press('ArrowLeft'); await p.keyboard.press('ArrowUp'); await p.keyboard.press('Enter');
   await p.waitForTimeout(1500);
@@ -65,7 +67,7 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   await p.click('#draw-btn'); await p.waitForTimeout(100);
   ok(name+' 2 draw offers a game: then disabled with a reason, resign still on', await btn('draw-btn')==='off:이번 판의 무승부 제안 기회를 모두 썼습니다' && await btn('resign-btn')==='on');
   await p.evaluate(()=>{aiThinking=true;updateTurn();}); ok(name+' AI thinking: draw + resign disabled with a reason', await btn('resign-btn')==='off:AI가 생각 중입니다' && await btn('draw-btn')==='off:AI가 생각 중입니다');
-  await p.evaluate(()=>{aiThinking=false;currentPlayer=aiPlayer;updateTurn();}); ok(name+' not my turn: draw shown but disabled', await btn('draw-btn')==='off:내 차례에 제안할 수 있습니다' && await btn('resign-btn')==='on'); await p.evaluate(()=>{currentPlayer=humanPlayer;}); await p.evaluate(()=>{aiThinking=false;aiOffers=0;updateTurn();});
+  await p.evaluate(()=>{aiThinking=false;aiOffers=0;updateTurn();});
   await setB('empty'); await p.click('#draw-btn'); await p.waitForTimeout(500);
   ok(name+' AI accepts a draw otherwise', await p.evaluate(()=>gameOver&&document.getElementById('modal-winner').textContent==='무승부!'&&document.getElementById('modal-sub').textContent.includes('합의 무승부')) && await btn('draw-btn')==='off:진행 중인 게임이 없습니다' && await btn('resign-btn')==='off:진행 중인 게임이 없습니다');
   await setB('empty');

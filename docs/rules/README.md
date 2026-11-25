@@ -54,9 +54,9 @@
 ### 여러 모듈이 만지는 DOM id
 
 - 결과 창 `overlay`, `modal-stone`, `modal-winner`, `modal-sub`: app.js(AI)·room.js(`tmShowEnd`)
-- 무승부·항복 `game-actions`, `draw-btn`, `resign-btn`: app.js만. 투표 창 `vote-box`, `vote-text`, `vote-btns`: room.js만. 투표 알림 `vote-note`: app.js `voteNote`만 씀(room.js는 함수로 부름)
+- 패널 버튼 줄 `game-actions`(`.actions`: 새 게임, `draw-btn`, `resign-btn`): app.js만. 투표 중에는 바로 앞 `vote-box`가 CSS로 이 줄을 가린다(style.css). 투표 창 `vote-box`, `vote-text`, `vote-btns`: room.js만. 투표 알림 `vote-note`: app.js `voteNote`만 씀(room.js는 함수로 부름)
 - 연결 표시 `conn-status`: room.js가 켜고 app.js가 끔(`conn-dot`, `conn-text`는 room.js만)
 - 방 코드 입력 `team-code`: room.js가 읽고 app.js가 Enter 키를 붙임
 - 시계 `clock-1`, `clock-2`: clock.js만 씀
 - 헤더 `theme-btn`, `profile-*`, `pm-*`(프로필 메뉴, `pm-gsi`는 Google 버튼 자리): app.js
-- 그 밖의 `team-*`, `tv-*`, `tl1/2`, `tb1/2`는 room.js, 판·패널 id(`board-*`, `stones-layer`, `ghost-stone`, `kb-cursor`, `name-*`, `label-*`, `score-*`, `card-*`, `turn-*`, `sr-live`, `choice-*`)는 app.js 전용
+- 그 밖의 `team-*`, `tv-*`, `tl1/2`, `tb1/2`는 room.js, 판·패널 id(`btn-reset`, `board-*`, `stones-layer`, `ghost-stone`, `kb-cursor`, `name-*`, `label-*`, `score-*`, `card-*`, `turn-*`, `sr-live`, `choice-*`)는 app.js 전용

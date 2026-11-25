@@ -369,14 +369,14 @@ function updateTurn(){
 }
 
 // draw / resign buttons: always shown; disabled with the reason as title when unusable.
-// draw only on my (team's) turn, 2 offers a game (resign: no limit)
+// draw on any turn, 2 offers a game (resign: no limit)
 let aiOffers=0;
 function updateActions(stuck){
   const team=gameMode==='team', live=!gameOver&&(!team||!!(TM&&TM.started&&tmMe()));
   const used=team?(TM&&TM.offers.draw[TM.me])||0:aiOffers;
   const busy=team?!!(TM&&TM.vote):aiThinking||flipping; // flipping sets aiThinking too
   const why=!live?'진행 중인 게임이 없습니다':busy?(team?'투표가 진행 중입니다':'AI가 생각 중입니다'):'';
-  const dwhy=why||(currentPlayer!==myStoneColor()?'내 차례에 제안할 수 있습니다':used>=TeamLogic.VOTE_MAX?'이번 판의 무승부 제안 기회를 모두 썼습니다':'');
+  const dwhy=why||(used>=TeamLogic.VOTE_MAX?'이번 판의 무승부 제안 기회를 모두 썼습니다':''); // any turn (AI's turn = AI thinking)
   const draw=document.getElementById('draw-btn'), res=document.getElementById('resign-btn');
   draw.disabled=!!dwhy; draw.title=dwhy;
   draw.classList.toggle('hot',!!stuck&&!dwhy);
