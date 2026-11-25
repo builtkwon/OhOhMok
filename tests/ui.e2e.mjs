@@ -39,7 +39,7 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   ok(name+' Google name shown as text', await p.evaluate(()=>{const s=[Profile.signedIn,Profile.name];Profile.signedIn=()=>true;Profile.name=()=>'<b>홍</b>';updateBadges();updateTurn();
     const r=document.getElementById('name-black').textContent==='<b>홍</b> 나'&&!document.querySelector('#name-black b')&&document.getElementById('turn-text').textContent==='<b>홍</b> 차례';
     [Profile.signedIn,Profile.name]=s;updateBadges();updateTurn();return r;}));
-  ok(name+' draw + resign buttons on my turn', await p.evaluate(()=>!document.getElementById('game-actions').hidden&&getComputedStyle(document.getElementById('draw-btn')).visibility==='visible'));
+  ok(name+' draw + resign buttons on my turn', await p.evaluate(()=>!document.getElementById('game-actions').hidden&&!document.getElementById('draw-btn').hidden));
   await p.focus('#board-click'); await p.keyboard.press('Tab').catch(()=>{}); await p.focus('#board-click');
   await p.keyboard.press('ArrowLeft'); await p.keyboard.press('ArrowUp'); await p.keyboard.press('Enter');
   await p.waitForTimeout(1500);

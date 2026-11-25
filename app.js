@@ -374,7 +374,7 @@ function updateActions(stuck){
   const left=!team||(!!TM&&!TM.vote&&(TM.offers[TM.me]||0)<TeamLogic.VOTE_MAX); // rooms: 2 offers each, one vote at a time
   const draw=document.getElementById('draw-btn'), res=document.getElementById('resign-btn');
   document.getElementById('game-actions').hidden=!live;
-  draw.style.visibility=live&&left&&currentPlayer===myStoneColor()?'':'hidden';
+  draw.hidden=!(live&&left&&currentPlayer===myStoneColor());
   draw.classList.toggle('hot',!!stuck);
   res.disabled=!left;
 }

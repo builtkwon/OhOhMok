@@ -104,7 +104,7 @@ try {
   await start();
   await Wo.evaluate(() => tmSend({ type: 'vote-start', kind: 'draw' })); await V.waitForTimeout(800);
   ok('draw offer off-turn ignored', await V.evaluate(() => !TM.vh && !TM.offers[TM.players[1].id]));
-  ok('draw button only for the team to move', await Zu.evaluate(() => getComputedStyle(document.getElementById('draw-btn')).visibility === 'visible') && await Wo.evaluate(() => getComputedStyle(document.getElementById('draw-btn')).visibility === 'hidden'));
+  ok('draw button only for the team to move', await Zu.evaluate(() => !document.getElementById('draw-btn').hidden) && await Wo.evaluate(() => document.getElementById('draw-btn').hidden));
   // 1) draw passes: Zu offers -> teammate Va first, then Wo
   await Zu.evaluate(() => offerDraw());
   ok('draw: proposer team asked first', await asked(V) && await waiting(Wo) && await waiting(Zu));
@@ -122,7 +122,7 @@ try {
   await V.evaluate(() => { TM_VOTE_MS = 1500; offerDraw(); });
   ok('vote shown to guests', await asked(Zu));
   ok('timeout cancels the vote', await vend(V, () => !TM.vh && !gameOver) && await vend(Zu, () => document.getElementById('vote-box').hidden));
-  ok('2 offers per player', await V.evaluate(() => { tmHostVoteStart(TM.me, 'resign'); return !TM.vh && TM.offers[TM.me] === 2 && getComputedStyle(document.getElementById('draw-btn')).visibility === 'hidden' && document.getElementById('resign-btn').disabled; }));
+  ok('2 offers per player', await V.evaluate(() => { tmHostVoteStart(TM.me, 'resign'); return !TM.vh && TM.offers[TM.me] === 2 && document.getElementById('draw-btn').hidden && document.getElementById('resign-btn').disabled; }));
   // 4) resign vote: Zu resigns, teammate Va agrees -> white wins by resignation
   await Zu.evaluate(() => resign());
   ok('resign: own team asked only', await asked(V) && await Wo.evaluate(() => document.getElementById('vote-box').hidden || document.getElementById('vote-btns').hidden));
