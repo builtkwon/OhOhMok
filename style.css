@@ -747,13 +747,16 @@
   @media (max-width: 900px) {
     body { justify-content: flex-start; }
     h1 { font-size: 2rem; }
-    header { margin-bottom: 10px; }
+    header { margin-bottom: 10px; width: 100%; max-width: 480px; text-align: left; position: relative; }
+    .header-tools { top: 4px; right: 0; }
     .game-layout { flex-direction: column; align-items: center; gap: 12px; width: 100%; }
     .panel { width: 100%; max-width: 480px; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; }
     .panel:last-child { display: none; }
     .panel .divider { display: none; }
     .panel .btn { width: auto; flex: 1 1 40%; padding: 8px; }
-    .player-card { padding: 8px; flex: 1 1 0; min-width: 0; }
+    /* cards get their own row (they squashed to "Z" beside the score and buttons) */
+    .player-card { padding: 8px; flex: 1 1 calc(50% - 8px); min-width: 0; }
+    .player-card > div > div { min-width: 0; }
     .player-name { font-size: 0.9rem; }
     .player-label { letter-spacing: 0; font-size: 0.62rem; }
     .score-section { flex: 0 0 auto; }
