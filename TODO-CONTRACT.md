@@ -24,6 +24,14 @@
 
 ## ui-dev
 
+### 테마 저장 키와 :root 토큰 기록 (이미 반영, 문서화 요청)
+
+- 종류: 저장 키 / CSS 변수
+- 제안: localStorage `ohohmok-theme` = `"light"` / `"dark"`(없으면 OS 설정). `:root` 강조색 `--accent-gold` → `--accent`(+ `--accent-rgb`), 새 토큰 `--modal-bg`, `--inset-bg`, `--scrim`, `--danger`. 라이트 값은 `:root[data-theme="light"]`. DOM id 추가: `theme-btn`, `profile-wrap`, `profile-btn`, `profile-menu`, `pm-*`(app.js 전용)
+- 이유: 사용자 요청(다크/라이트, 진녹색 강조색). 키 이름은 PM 지시대로. 옛 `--accent-gold`는 style.css 밖에서 쓰는 곳이 없어 이름을 바꿨다
+- 영향 역할: integrator(docs/rules/README.md 이음새 목록·README 갱신), room-dev(room.js가 새 색을 쓸 때 위 토큰 사용)
+- 호환: 새 키라 옛 데이터 없음. ZESTMOK과 출처를 공유하지만 `ohohmok-` 접두사라 충돌 없음
+
 <!-- end:ui-dev -->
 
 ## ai-dev
