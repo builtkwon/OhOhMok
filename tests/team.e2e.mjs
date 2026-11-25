@@ -4,12 +4,14 @@ const url = new URL('../index.html', import.meta.url).href;
 const b = await chromium.launch({ args: ['--disable-features=WebRtcHideLocalIpsWithMdns'] });
 const T0 = Date.now(), LOG = []; // peer/migration trace, printed only on failure
 const ok = (n, c) => { console.log(c ? 'PASS' : 'FAIL', n); if (!c) process.exitCode = 1; };
-// photo: install a stub Profile (profile.js is built separately; docs/profile-stones.md §6.1)
+// photo: install a stub Profile that the real profile.js cannot replace (docs/profile-stones.md §6.1)
 const mk = async (name, rule, photo) => {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
   if (photo !== undefined) await ctx.addInitScript(src => {
     let fn = null; window.__ph = { src, hide: false, stones: { 1: null, 2: null }, set(v, h = false) { this.src = v; this.hide = h; fn && fn(); } };
-    window.Profile = { photo: () => __ph.src, hideOthers: () => __ph.hide, onChange: f => { fn = f; }, setStone: (c, s) => { __ph.stones[c] = s; } };
+    const stub = { photo: () => __ph.src, hideOthers: () => __ph.hide, onChange: f => { fn = f; }, setStone: (c, s) => { __ph.stones[c] = s; },
+      name: () => null, signedIn: () => false, hasUpload: () => false, renderButton: () => Promise.resolve() }; // rest of §6.1 that app.js calls
+    Object.defineProperty(window, 'Profile', { get: () => stub, set: () => {}, configurable: true }); // keep the stub when the real profile.js assigns window.Profile
   }, photo);
   const p = await ctx.newPage(); p.ctx = ctx; p.errs = []; p.on('pageerror', e => p.errs.push(e.message));
   p.on('console', m => { if (m.text().startsWith('[tm]')) LOG.push(`${((Date.now() - T0) / 1000).toFixed(1)}s ${name} ${m.text().slice(5)}`); });
@@ -116,7 +118,7 @@ try {
   await Q.evaluate(() => teamPick(1)); await want(Q, { 1: img('A'), 2: null }); ok('rep follows team change', true);
   await R.evaluate(() => tmLeave()); ok('departed player photo dropped', await P.waitForFunction(id => TM.players.length === 2 && !(id in TM.av), await R.evaluate(() => tmSid()), W).then(() => true, () => false));
   await P.evaluate(() => tmLeave()); ok('leaving clears stones', (await st(P)) === JSON.stringify({ 1: null, 2: null }));
-  ok('no page errors (avatar)', P.errs.length + Q.errs.length + R.errs.length === 0);
+  { const e = [P, Q, R].flatMap(x => x.errs); if (e.length) console.log('avatar errs', e); ok('no page errors (avatar)', P.errs.length + Q.errs.length + R.errs.length === 0); }
   // takeover that cannot open the room (stub Peer, no network): back to guest, and no takeover while the broker is unreachable
   const S = await mk('Solo');
   const tk = (mode) => S.evaluate(m => {

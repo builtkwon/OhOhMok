@@ -1,5 +1,6 @@
 // Run: node tests/profile.test.js  (pure parts of profile.js: JWT, size loop, storage shape, validation)
 const assert = require('assert');
+globalThis.TeamLogic = require('../team.js'); // profile.js validates with TeamLogic.validAvatar
 const P = require('../profile.js')._;
 
 // JWT payload: base64url, no padding, UTF-8 name; signature is not checked
@@ -30,7 +31,7 @@ assert.deepStrictEqual(tried, [0.8, 0.6], 'stops at the first that fits');
 assert.strictEqual(P.firstFit([0.8, 0.6, 0.4], () => 'x'.repeat(MAX + 1)), null);
 assert.strictEqual(P.firstFit([0.8], () => null), null, 'encoder failure is not a fit');
 
-// avatar validation (docs/profile-stones.md §5), local fallback until TeamLogic.validAvatar lands
+// avatar validation (docs/profile-stones.md §5) via TeamLogic.validAvatar
 const jpg = 'data:image/jpeg;base64,' + 'A'.repeat(100);
 assert(P.validAvatar('https://lh3.googleusercontent.com/a/ACg8oc-_x=s128-c'));
 assert(P.validAvatar(jpg));

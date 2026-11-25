@@ -4,12 +4,9 @@
   const KEY = 'ohohmok-profile', HIDE = 'ohohmok-hide-avatars', MAX = 44000, SIZE = 128, BUDGET = 3000;
   const CLIENT_ID = '923238134204-skkpl84vtimf60a8s1sl00562tqlr7b9.apps.googleusercontent.com';
   const GIS = 'https://accounts.google.com/gsi/client', MP = 'vendor/mediapipe/';
-  const AVATAR = [/^https:\/\/lh3\.googleusercontent\.com\/[A-Za-z0-9_\-/=]+$/, /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/];
 
   // ---- pure ----
-  // shortcut: local copy of the §5 check until room-dev's TeamLogic.validAvatar is merged; integrator drops the fallback then
-  const validAvatar = (s) => (typeof TeamLogic !== 'undefined' && TeamLogic.validAvatar) ? TeamLogic.validAvatar(s)
-    : typeof s === 'string' && s.length <= MAX && AVATAR.some(r => r.test(s));
+  const validAvatar = (s) => root.TeamLogic.validAvatar(s); // one §5 check for the whole app (team.js loads first)
   const stoneValue = (s) => validAvatar(s) ? 'url("' + s + '")' : null;
   // payload only, signature not checked: used for display (photo, name), never for permissions
   function decodeJwt(t) {
