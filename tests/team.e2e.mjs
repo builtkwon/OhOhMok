@@ -90,6 +90,51 @@ try {
   await Y.waitForFunction(() => gameOver && TM.result && TM.result.winner === 2 && TM.result.reason === 'time', null, { timeout: 15000 }); ok('blitz timeout: black loses', true);
   ok('loser sees time-out text', await X.waitForFunction(() => document.getElementById('modal-sub').textContent === '시간 초과로 졌습니다.', null, W).then(() => true));
   ok('no page errors (blitz)', X.errs.length + Y.errs.length === 0);
+  // draw / resign votes (docs/draw-resign.md §4): 2:1 room, black = Va (host) + Zu, white = Wo
+  const V = await mk('Va'), Wo = await mk('Wo'), Zu = await mk('Zu');
+  for (const p of [V, Wo, Zu]) p.on('dialog', d => d.accept()); // resign confirm
+  await V.evaluate(() => teamCreate(1)); await V.waitForFunction(() => TM && TM.joined, null, W);
+  const vc = await V.evaluate(() => TM.code); await join(Wo, vc); await join(Zu, vc);
+  await V.waitForFunction(() => TM.players.length === 3, null, W);
+  ok('vote room 2:1', (await players(V)) === 'Va:1:1,Wo:2:1,Zu:1:1');
+  const start = async () => { await V.evaluate(() => teamStart()); for (const p of [V, Wo, Zu]) await p.waitForFunction(() => TM.started && !gameOver && !document.getElementById('team-overlay').classList.contains('show'), null, W); };
+  const asked = (p) => p.waitForFunction(() => !document.getElementById('vote-box').hidden && !document.getElementById('vote-btns').hidden, null, W).then(() => true, () => false);
+  const waiting = (p) => p.evaluate(() => !document.getElementById('vote-box').hidden && document.getElementById('vote-btns').hidden);
+  const vend = (p, f) => p.waitForFunction(f, null, W).then(() => true, () => false);
+  await start();
+  await Wo.evaluate(() => tmSend({ type: 'vote-start', kind: 'draw' })); await V.waitForTimeout(800);
+  ok('draw offer off-turn ignored', await V.evaluate(() => !TM.vh && !TM.offers[TM.players[1].id]));
+  ok('draw button only for the team to move', await Zu.evaluate(() => getComputedStyle(document.getElementById('draw-btn')).visibility === 'visible') && await Wo.evaluate(() => getComputedStyle(document.getElementById('draw-btn')).visibility === 'hidden'));
+  // 1) draw passes: Zu offers -> teammate Va first, then Wo
+  await Zu.evaluate(() => offerDraw());
+  ok('draw: proposer team asked first', await asked(V) && await waiting(Wo) && await waiting(Zu));
+  await V.click('#vote-btns .btn >> nth=0');
+  ok('draw: then the other team', await asked(Wo) && await waiting(V));
+  await Wo.click('#vote-btns .btn >> nth=0');
+  for (const p of [V, Wo, Zu]) ok('draw agreed on ' + await p.evaluate(() => TM.name), await vend(p, () => gameOver && TM.result.draw && TM.result.reason === 'agreed' && document.getElementById('modal-sub').textContent.includes('합의 무승부') && document.getElementById('vote-box').hidden));
+  await V.evaluate(() => tmRematch()); await V.waitForTimeout(500); await start();
+  ok('offers reset each game', await V.evaluate(() => Object.keys(TM.offers).length === 0));
+  // 2) draw refused by the other team
+  await V.evaluate(() => offerDraw()); await asked(Zu); await Zu.click('#vote-btns .btn >> nth=0');
+  await asked(Wo); await Wo.click('#vote-btns .btn >> nth=1');
+  ok('draw refused: cancelled, game goes on', await vend(V, () => !TM.vh && !gameOver && document.getElementById('vote-box').hidden) && await vend(Zu, () => document.getElementById('vote-box').hidden && !gameOver));
+  // 3) timeout (shortened) cancels; Va's 2 offers are then used up
+  await V.evaluate(() => { TM_VOTE_MS = 1500; offerDraw(); });
+  ok('vote shown to guests', await asked(Zu));
+  ok('timeout cancels the vote', await vend(V, () => !TM.vh && !gameOver) && await vend(Zu, () => document.getElementById('vote-box').hidden));
+  ok('2 offers per player', await V.evaluate(() => { tmHostVoteStart(TM.me, 'resign'); return !TM.vh && TM.offers[TM.me] === 2 && getComputedStyle(document.getElementById('draw-btn')).visibility === 'hidden' && document.getElementById('resign-btn').disabled; }));
+  // 4) resign vote: Zu resigns, teammate Va agrees -> white wins by resignation
+  await Zu.evaluate(() => resign());
+  ok('resign: own team asked only', await asked(V) && await Wo.evaluate(() => document.getElementById('vote-box').hidden || document.getElementById('vote-btns').hidden));
+  await V.click('#vote-btns .btn >> nth=0');
+  ok('resign: white wins', await vend(Wo, () => gameOver && TM.result.winner === 2 && TM.result.reason === 'resign' && document.getElementById('modal-sub').textContent === '상대 팀이 항복했습니다!'));
+  ok('resign: loser text', await vend(Zu, () => document.getElementById('modal-sub').textContent === '우리 팀이 항복했습니다.' && scores[2] === 1));
+  // 5) alone on the team: confirm only
+  await V.evaluate(() => tmRematch()); await V.waitForTimeout(500); await start();
+  await Wo.evaluate(() => resign());
+  ok('team of one resigns at once', await vend(V, () => gameOver && TM.result.winner === 1 && TM.result.reason === 'resign'));
+  ok('no page errors (vote)', V.errs.length + Wo.errs.length + Zu.errs.length === 0);
+  for (const p of [V, Wo, Zu]) await p.ctx.close();
   // photo stones: team rep = first player of each team; relay, late joiner, validation, host turn-off, hide, leave
   const img = (c) => 'data:image/png;base64,' + c.repeat(8);
   const st = (p) => p.evaluate(() => JSON.stringify(__ph.stones));
