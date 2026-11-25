@@ -1,4 +1,4 @@
-# 보스 AI(æ 원준) 측정 기록과 검토 대기 안
+# 보스 AI(JOONSAMA) 측정 기록과 검토 대기 안
 
 ## 현재 구성 (`ai.js` `LEVELS.boss`)
 - `depth 10, K 12, ms 3500, vcf 16, vctD 6, def: true`

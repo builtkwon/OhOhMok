@@ -15,7 +15,7 @@
   ```
 - 사진을 쓸 때는 JS가 `--stone-black-img` / `--stone-white-img`를 `url("...")`로 정한다(`document.documentElement.style.setProperty`). 변수를 지우면 단색 기본 돌로 돌아간다.
 - `stoneImgs`의 `getComputedStyle` URL 추출과 돌 선택 `<img>`는 없앴다. 돌 선택 버튼은 `<div class="stone-choice-img black|white">`이고 같은 변수를 쓴다. 패널 돌(`.player-stone`)의 인라인 사진 스타일도 없앴다.
-- 보스(원준) 사진 규칙(`body.boss-*`, rage, win)은 유지한다. 변수보다 우선한다(`!important` 그대로).
+- 보스(JOONSAMA) 사진 규칙(`body.boss-*`, rage, win)은 유지한다. 변수보다 우선한다(`!important` 그대로).
 - `img/og.png`도 인물 사진이 들어 있어 교체한다(§7).
 
 ## 2. 사진 출처 (우선순위)
@@ -48,7 +48,7 @@
 
 ## 4. 어디에 누구 사진이 붙나
 
-- **AI 대전**: 내가 고른 색에 내 사진. AI 쪽은 기본 돌(보스면 원준 사진).
+- **AI 대전**: 내가 고른 색에 내 사진. AI 쪽은 기본 돌(보스면 JOONSAMA 사진).
 - **방(팀) 모드**: **팀 대표 사진**(각 팀 `TM.players` 순서상 첫 플레이어). 돌 색당 사진 하나라 CSS 변수 두 개(`--stone-*-img`)로 끝난다.
   대표가 사진이 없거나 사진이 숨겨지면 기본 돌.
 

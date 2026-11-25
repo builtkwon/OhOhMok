@@ -93,4 +93,45 @@ assert.strictEqual(T.cleanName(null), '');
     'data:image/svg+xml;base64,PHN2Zz4=', 'data:text/html;base64,PGI+', 'data:image/jpeg,AAAA', ok + 'A'.repeat(44000), ' ' + d('AAAA'), '', null, undefined, 1, {}, ['x']])
     assert(!T.validAvatar(bad), 'rejects ' + String(bad).slice(0, 50));
 }
+// draw/resign (docs/draw-resign.md): open 5-cell windows + vote order
+{
+  const bw = T.bestWindow, b = empty();
+  assert.strictEqual(bw(b, 1), 0, 'empty board: open windows with 0 stones');
+  assert(!T.noMoves(b));
+  b[7][7] = 1; b[7][8] = 1; b[7][9] = 1;
+  assert.strictEqual(bw(b, 1), 3, 'three in an open window');
+  assert.strictEqual(bw(b, 2), 0);
+  // full board, no five: alternate pairs per row so no line holds 5 of a color
+  const full = Array.from({ length: 15 }, (_, r) => Array.from({ length: 15 }, (_, c) => ((Math.floor(c / 2) + r) % 2) + 1));
+  assert.strictEqual(bw(full, 1), -1); assert.strictEqual(bw(full, 2), -1);
+  assert(T.noMoves(full), 'full board: no moves');
+  // cells still empty but every window holds both colors
+  const holes = full.map(r => r.slice()); holes[0][0] = 0; holes[14][14] = 0; holes[7][7] = 0;
+  assert(T.noMoves(holes), 'empty cells left, nobody can make five');
+  // one side blocked: white still has a free row
+  const one = holes.map(r => r.slice()); one[3] = [2, 2, 0, 0, 0, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2];
+  assert.strictEqual(bw(one, 1), -1, 'black blocked'); assert.strictEqual(bw(one, 2), 2, 'white still has an open window');
+  assert(!T.noMoves(one));
+  // edge: windows must fit inside the board (4 cells at the edge are not a window)
+  const edge = full.map(r => r.slice()); edge[0] = [0, 0, 0, 0, 2, 1, 1, 2, 2, 1, 1, 2, 2, 1, 1];
+  assert.strictEqual(bw(edge, 1), -1);
+  // vote: everyone online asked at once (minus who said yes) for a draw, own team only for resign; [] = passed
+  const ps = [P('a', 1), P('b', 2), P('c', 1), P('d', 2, false), P('e', 2)];
+  assert.deepStrictEqual(T.voteAsk(ps, 'draw', 1, ['a']), ['b', 'c', 'e'], 'draw: all at once, offline d excluded');
+  assert.deepStrictEqual(T.voteAsk(ps, 'draw', 1, ['a', 'c']), ['b', 'e']);
+  assert.deepStrictEqual(T.voteAsk(ps, 'draw', 1, ['a', 'c', 'b']), ['e']);
+  assert.deepStrictEqual(T.voteAsk(ps, 'draw', 1, ['a', 'c', 'b', 'e']), [], 'everyone agreed');
+  assert.deepStrictEqual(T.voteAsk(ps, 'resign', 2, ['b']), ['e'], 'resign: own team only');
+  assert.deepStrictEqual(T.voteAsk(ps, 'resign', 2, ['b', 'e']), []);
+  assert.deepStrictEqual(T.voteAsk([P('a', 1), P('b', 2)], 'resign', 1, ['a']), [], 'alone on the team: passes at once');
+  assert.deepStrictEqual(T.voteAsk([P('a', 1), P('b', 2)], 'draw', 1, ['a']), ['b']);
+  assert.deepStrictEqual(T.voteAsk([P('a', 1), P('c', 1, false), P('b', 2)], 'draw', 1, ['a']), ['b'], 'offline teammate skipped');
+  // a draw needs the other team's consent: nobody of it online and nobody of it agreed -> null (refuse / cancel)
+  assert.strictEqual(T.voteAsk([P('a', 1), P('b', 2, false)], 'draw', 1, ['a']), null, '1:1, opponent offline at start');
+  assert.strictEqual(T.voteAsk([P('a', 1), P('c', 1), P('b', 2, false)], 'draw', 1, ['a', 'c']), null, 'opponent dropped mid-vote');
+  assert.strictEqual(T.voteAsk([P('a', 1), P('c', 1, false), P('b', 2, false), P('d', 2, false)], 'draw', 1, ['a']), null, 'after a takeover everyone else is offline');
+  assert.deepStrictEqual(T.voteAsk([P('a', 1), P('b', 2, false), P('d', 2)], 'draw', 1, ['a', 'd']), [], 'one opponent agreed, the other left: passes');
+  assert.deepStrictEqual(T.voteAsk([P('a', 1), P('b', 2, false)], 'resign', 1, ['a']), [], 'resign needs no opponent');
+  assert.strictEqual(T.VOTE_MAX, 2);
+}
 console.log('team tests passed');

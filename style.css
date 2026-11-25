@@ -310,7 +310,7 @@
   .stone.white-stone, .ghost-stone.white-ghost, .modal-stone.white-stone, .player-stone.white, .stone-choice-img.white {
     background-color: var(--stone-white); background-image: var(--stone-white-img, none);
   }
-  /* boss (원준): the AI's stone color shows the boss's face */
+  /* boss (JOONSAMA): the AI's stone color shows the boss's face */
   /* boss rage (after the table flip, that one game only): the AI's stones wear the angry photo */
   body.boss-1.rage .stone.black-stone, body.boss-1.rage .modal-stone.black-stone, body.boss-1.rage .player-stone.black,
   body.boss-2.rage .stone.white-stone, body.boss-2.rage .modal-stone.white-stone, body.boss-2.rage .player-stone.white { background-image: url(img/wonjun-rage-stone.jpg) !important; }
@@ -787,3 +787,16 @@
   #pm-hide[aria-pressed="true"]::before { content: '☑ '; color: var(--accent); }
   .pm-msg { font-size: 0.75rem; color: var(--danger); padding: 0 12px; }
   .pm-msg:empty { display: none; }
+
+  /* draw / resign (docs/draw-resign.md) */
+  .game-actions { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+  .game-actions[hidden], .vote-box[hidden] { display: none; }
+  .game-actions .btn { width: auto; padding: 6px 18px; font-size: 0.85rem; }
+  .game-actions .btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+  #draw-btn.hot { background: var(--accent); color: var(--bg); animation: drawPulse 1.6s ease-in-out infinite; }
+  @keyframes drawPulse { 50% { box-shadow: 0 0 16px rgba(var(--accent-rgb),0.7); } }
+  @media (prefers-reduced-motion: reduce) { #draw-btn.hot { animation: none; } }
+  .vote-box { margin: 8px auto 0; max-width: 360px; padding: 10px 12px; text-align: center; font-size: 0.85rem; color: var(--text-primary); border: 1px solid var(--accent); border-radius: 8px; background: rgba(var(--accent-rgb),0.08); }
+  .vote-box .modal-btns { margin-top: 8px; }
+  .vote-box .btn { padding: 6px 18px; }
+  .vote-box .modal-btns[hidden] { display: none; }
