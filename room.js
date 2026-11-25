@@ -319,7 +319,8 @@ function tmVoteView(d) {
     return flashTurn((d.kind === 'draw' ? '무승부' : '항복') + ' 제안이 취소되었습니다');
   }
   if ((d.kind !== 'draw' && d.kind !== 'resign') || typeof d.from !== 'string' || !Array.isArray(d.ask) || !Array.isArray(d.yes) || !Number.isFinite(d.ends)) return;
-  TM.vote = {kind: d.kind, from: d.from, ask: d.ask.filter(x => typeof x === 'string'), until: Date.now() + Math.min(Math.max(d.ends, 0), 60000)};
+  const str = (a) => a.filter(x => typeof x === 'string');
+  TM.vote = {kind: d.kind, from: d.from, ask: str(d.ask), yes: str(d.yes), until: Date.now() + Math.min(Math.max(d.ends, 0), 60000)};
   tmVoteSet();
   if (TM.vote.ask.includes(TM.me)) announce(document.getElementById('vote-text').textContent);
 }
@@ -330,7 +331,8 @@ function tmVoteText() {
   if (!V) return;
   const who = TM.players.find(p => p.id === V.from), mine = V.ask.includes(TM.me);
   const s = Math.max(0, Math.ceil((V.until - Date.now()) / 1000));
-  document.getElementById('vote-text').textContent = `${who ? who.name : '?'}님의 ${V.kind === 'draw' ? '무승부' : '항복'} 제안 — ${mine ? '동의하나요?' : '응답 기다리는 중'} (${s}초)`;
+  // yes includes the proposer, ask = who has not answered yet (offline players drop out of both counts)
+  document.getElementById('vote-text').textContent = `${who ? who.name : '?'}님의 ${V.kind === 'draw' ? '무승부' : '항복'} 제안 · 동의 ${V.yes.length}/${V.yes.length + V.ask.length} — ${mine ? '동의하나요?' : '응답 기다리는 중'} (${s}초)`;
   document.getElementById('vote-btns').hidden = !mine;
 }
 function tmVoteStart(kind) { if (!TM) return; if (TM.role === 'host') tmHostVoteStart(TM.me, kind); else tmSend({type: 'vote-start', kind}); }
@@ -338,7 +340,7 @@ function tmVoteReply(ok) {
   if (!TM || !TM.vote) return;
   if (TM.role === 'host') return tmHostVoteReply(TM.me, ok);
   tmSend({type: 'vote-reply', ok});
-  TM.vote.ask = TM.vote.ask.filter(x => x !== TM.me); tmVoteText();
+  TM.vote.ask = TM.vote.ask.filter(x => x !== TM.me); if (ok) TM.vote.yes.push(TM.me); tmVoteText(); // until the host's next vote/snap
 }
 
 function tmSnap() {
