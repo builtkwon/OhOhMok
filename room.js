@@ -195,9 +195,13 @@ function tmHostPick(id, team) {
 function tmHostAvatar(id, src) {
   const p = TM.players.find(x => x.id === id);
   if (!p || p.avatarOff || (src !== null && !TeamLogic.validAvatar(src)) || (TM.av[id] || null) === src) return;
-  // shortcut: changes within 1 s of the last one are dropped (not queued), so a fast upload-then-clear can leave the old photo.
-  const now = Date.now();
-  if (now - (TM.avAt[id] || 0) < 1000) return;
+  // at most 1 relay per id per second; the latest change inside the window is sent when it ends (the matte lands ~0.2 s after the upload)
+  const now = Date.now(), wait = 1000 - (now - (TM.avAt[id] || 0));
+  if (wait > 0) {
+    const q = TM.avNext || (TM.avNext = {});
+    if (!(id in q)) setTimeout(() => { const v = q[id]; delete q[id]; if (TM && TM.role === 'host') tmHostAvatar(id, v); }, wait);
+    q[id] = src; return;
+  }
   TM.avAt[id] = now;
   tmAvatarRelay(id, src);
 }
@@ -522,15 +526,17 @@ function tmLobby() {
     const ul = document.getElementById('tl' + t);
     ul.textContent = '';
     TM.players.filter(p => p.team === t).forEach(p => {
-      const li = document.createElement('li');
-      li.textContent = (p.id === TM.hostId ? '👑 ' : '') + p.name + (p.id === TM.me ? ' (나)' : '') + (p.online ? '' : ' (끊김)');
+      const li = document.createElement('li'), nm = document.createElement('span');
+      nm.className = 'tl-name'; // ellipsis on the name only, so the "사진 끄기" chip is never clipped
+      nm.textContent = (p.id === TM.hostId ? '👑 ' : '') + p.name + (p.id === TM.me ? ' (나)' : '') + (p.online ? '' : ' (끊김)');
+      li.appendChild(nm);
       if (p.id === TM.me) li.className = 'me'; else if (!p.online) li.className = 'off';
       if (host && p.id !== TM.me && TM.av[p.id]) {
         const b = document.createElement('button');
         b.type = 'button'; b.className = 'level-chip av-off'; b.textContent = '사진 끄기';
         b.setAttribute('aria-label', p.name + ' 사진 끄기');
         b.onclick = () => tmAvatarOff(p.id);
-        li.append(' ', b);
+        li.appendChild(b);
       }
       ul.appendChild(li);
     });

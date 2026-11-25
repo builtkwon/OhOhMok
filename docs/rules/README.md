@@ -10,7 +10,7 @@
 | [docs/adr/](../adr/) | 되돌리기 어려운 결정 기록([template.md](../adr/template.md), 파일명 `NNNN-제목.md`) |
 | [docs/team-mode.md](../team-mode.md) | 방 설계(일부 옛 내용, 상단 변경 메모 우선) |
 | [docs/boss-ai.md](../boss-ai.md) | 보스 AI 측정 방법·기록 |
-| [docs/profile-stones.md](../profile-stones.md) | 사진 돌 설계(작성 중) |
+| [docs/profile-stones.md](../profile-stones.md) | 사진 돌 설계 |
 
 ## 규칙 표현
 
@@ -49,7 +49,7 @@
 | `app.js` | clock.js | 상태 `gameMode`, `gameOver`, `currentPlayer`, `humanPlayer`, `aiPlayer`, `aiThinking`, `scores` · 함수 `announce`, `updateScores`, `updateTurn`, `showEndOverlay` |
 | `app.js` | room.js | 상태 `board`, `gameMode`, `gameOver`, `currentPlayer`, `humanPlayer`, `scores`, `lastPlaced`, `winningCells`, `RULE`, `BOARD_SIZE`, `stonesLayer` · 함수 `initBoard`, `isForbidden`, `checkWin`, `addStoneElement`, `refreshStones`, `coordName`, `ruleName`, `announce`, `updateScores`, `updateTurn`, `showOverlay`, `hideOverlay`, `closeOverlay`, `resultTitle`, `showEndOverlay`, `showDrawOverlay` |
 
-`index.html`의 인라인 `onclick`이 부르는 전역: room.js `teamCreate`, `teamJoin`, `teamPick`, `teamStart`, `teamBack`, `copyTeamCode` · app.js `selectMode`, `selectRule`, `ruleBack`, `setLevel`, `selectColor`, `newGame`, `rematch`, `resetScore`, `closeOverlay`.
+`index.html`의 인라인 `onclick`이 부르는 전역: room.js `teamCreate`, `teamJoin`, `teamPick`, `teamStart`, `teamBack`, `copyTeamCode` · app.js `selectMode`, `selectRule`, `ruleBack`, `setLevel`, `selectColor`, `newGame`, `rematch`, `resetScore`, `closeOverlay`, `toggleTheme`, `toggleProfileMenu`, `profileLogin`, `profileUpload` · profile.js `Profile.clearUpload`, `Profile.setHideOthers`.
 
 ### 여러 모듈이 만지는 DOM id
 

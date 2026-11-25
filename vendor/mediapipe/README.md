@@ -15,3 +15,4 @@
 - 뺀 것: ESM/CJS 번들, `.map`, `.d.ts`, `vision_wasm_module_internal.*`(`FilesetResolver.forVisionTasks(path)` 기본값은 `vision_wasm_internal.*`만 쓴다).
 - 1.2.2를 고른 이유: 작업일(2026-11-24) 기준 2주 넘게 지난 최신 정식 버전(1.2.3은 2026-11-11 게시).
 - 올릴 때: tarball에서 위 세 파일을 같은 이름으로 바꾸고 이 표의 버전·SHA-256을 고친다.
+- 원격 기록: 번들이 약 60초마다 `https://odml.pa.googleapis.com/v1/log`로 사용 기록을 POST한다(끄는 옵션 없음). `index.html` CSP의 `connect-src`가 막는 것이 의도이며, 이 주소를 허용하지 않는다.

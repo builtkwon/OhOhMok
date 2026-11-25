@@ -558,7 +558,7 @@ function gsiButton() {
 }
 function profileLogin() {
   profileMsg('');
-  if (Profile.signedIn()) return Profile.logout();
+  if (Profile.signedIn()) { Profile.logout(); document.querySelector('#profile-menu button:not([hidden])').focus(); return; }
   Promise.resolve().then(() => Profile.login()).catch(e => profileMsg((e && e.message) || '로그인하지 못했습니다')); // rejects in Korean when One Tap is skipped
 }
 function profileUpload(input) {
@@ -575,6 +575,7 @@ function renderProfile() {
   login.textContent = inG ? `로그아웃 (${Profile.name() || 'Google'})` : 'Google 로그인';
   login.hidden = !inG && gsiState !== 'fail'; // signed out: the official button in #pm-gsi; the One Tap button only if it failed to load
   document.getElementById('pm-gsi').hidden = inG;
+  if (!inG && !document.getElementById('profile-menu').hidden) gsiButton(); // signed out with the menu open (e.g. right after logout)
   document.getElementById('pm-clear').hidden = !Profile.hasUpload();
   document.getElementById('pm-hide').setAttribute('aria-pressed', Profile.hideOthers());
   if (gameMode === 'ai' && !document.getElementById('select-overlay').classList.contains('show')) aiStones(true);

@@ -28,9 +28,10 @@
   32KB(base64 길이 ≤ 44,000자)를 넘으면 품질을 0.8 → 0.6 → 0.4로 낮춘다. 그래도 넘으면 거절한다.
 - Google: GIS(Google Identity Services) ID 토큰의 `picture` 클레임을 쓴다. `=s96-c`를 `=s128-c`로 바꿔 쓴다.
   토큰은 서명 검증 없이 payload만 디코드한다. 표시용 사진·이름에만 쓰고 권한 판단에는 쓰지 않는다.
-- GIS 스크립트(`https://accounts.google.com/gsi/client`)는 로그인 버튼을 누를 때만 로드한다. `tests/ui.e2e.mjs`가 외부 요청 0을 검사하기 때문이다.
+- GIS 스크립트(`https://accounts.google.com/gsi/client`)는 프로필 메뉴를 처음 열 때만 로드한다(공식 버튼, `Profile.renderButton`). `tests/ui.e2e.mjs`가 외부 요청 0을 검사하기 때문이다.
 - 누끼(배경 제거)를 v1에 넣는다. MediaPipe Tasks Vision `ImageSegmenter`(selfie segmenter)를 `vendor/mediapipe/`에 넣고, 사진을 정할 때만 지연 로드한다(외부 요청 0 유지).
   - 예산 3초. 실패·시간 초과·CORS 오염(Google 사진을 canvas에 못 그림)이면 누끼 없이 크롭한 사진 그대로 쓴다. 늦게 끝난 누끼는 원본이 그대로면 저장하고 돌을 바꾼다(`onChange`).
+  - MediaPipe 1.2.2는 약 60초마다 `https://odml.pa.googleapis.com/v1/log`로 사용 기록을 보내려 한다. CSP가 막아서 밖으로 나가지 않는다(콘솔에 CSP 위반 1건). **`connect-src`에 절대 추가하지 않는다.**
   - 결과는 128px PNG data URL(≤ 32KB)로 `ohohmok-profile`에 캐시한다. 원본이 같으면 다시 돌리지 않는다.
 
 ## 3. 저장 (localStorage, 접두사 `ohohmok-`)

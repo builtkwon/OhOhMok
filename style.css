@@ -718,10 +718,11 @@
   .team-col { flex: 1; min-width: 130px; border: 1px solid rgba(var(--accent-rgb),0.3); border-radius: 10px; padding: 10px; }
   .team-col-title { font-family: var(--font-serif); font-weight: 700; color: var(--accent); margin-bottom: 6px; }
   .team-col ul { list-style: none; margin: 0 0 10px; padding: 0; min-height: 66px; font-size: 0.85rem; text-align: left; }
-  .team-col li { padding: 2px 0; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .team-col li { padding: 2px 0; color: var(--text-primary); display: flex; align-items: center; gap: 4px; }
+  .team-col li .tl-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .team-col li.me { color: var(--accent); font-weight: 700; }
   .team-col li.off { opacity: 0.4; }
-  .team-col li .av-off { padding: 1px 6px; margin-left: 4px; font-size: 0.68rem; line-height: 1.3; vertical-align: middle; color: var(--text-secondary); border-color: rgba(var(--accent-rgb),0.3); }
+  .team-col li .av-off { flex: none; padding: 1px 6px; font-size: 0.68rem; line-height: 1.3; vertical-align: middle; color: var(--text-secondary); border-color: rgba(var(--accent-rgb),0.3); }
   .team-col .btn:disabled, #team-start:disabled { opacity: 0.4; cursor: not-allowed; }
 
   /* a11y helpers */
