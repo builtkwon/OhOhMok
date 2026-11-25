@@ -310,7 +310,7 @@
   .stone.white-stone, .ghost-stone.white-ghost, .modal-stone.white-stone, .player-stone.white, .stone-choice-img.white {
     background-color: var(--stone-white); background-image: var(--stone-white-img, none);
   }
-  /* boss (원준): the AI's stone color shows the boss's face */
+  /* boss (JOONSAMA): the AI's stone color shows the boss's face */
   /* boss rage (after the table flip, that one game only): the AI's stones wear the angry photo */
   body.boss-1.rage .stone.black-stone, body.boss-1.rage .modal-stone.black-stone, body.boss-1.rage .player-stone.black,
   body.boss-2.rage .stone.white-stone, body.boss-2.rage .modal-stone.white-stone, body.boss-2.rage .player-stone.white { background-image: url(img/wonjun-rage-stone.jpg) !important; }

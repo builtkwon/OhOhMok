@@ -101,7 +101,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // AI difficulty
-const LEVEL_NAMES = {easy: '쉬움', normal: '보통', hard: '어려움', boss: 'æ 원준'};
+const LEVEL_NAMES = {easy: '쉬움', normal: '보통', hard: '어려움', boss: 'JOONSAMA'};
 let aiLevel = 'normal';
 // ZESTMOK shares this github.io origin: copy its level/learning to our keys once (only if ours is absent). Old keys stay - ZESTMOK still uses them.
 for (const k of ['level', ...Object.keys(LEVEL_NAMES).map(l => 'mem-' + l)]) {
@@ -109,7 +109,7 @@ for (const k of ['level', ...Object.keys(LEVEL_NAMES).map(l => 'mem-' + l)]) {
 }
 try { const v = localStorage.getItem('ohohmok-level'); if (LEVEL_NAMES[v]) aiLevel = v; } catch (e) {}
 function levelName() { return LEVEL_NAMES[aiLevel]; }
-const aiName = () => aiLevel === 'boss' ? 'æ 원준' : 'AI';
+const aiName = () => aiLevel === 'boss' ? 'JOONSAMA' : 'AI';
 const meName = () => (hasProfile() && Profile.signedIn() && Profile.name()) || ''; // Google name, '' = signed out (shown as 나)
 // boss mode: the AI's stones wear the boss's face (class = which color it plays)
 let rage = false; // set by flipTable, cleared when a new fight starts
@@ -179,8 +179,8 @@ function drawBoard() {
   const stars = [[3,3],[3,11],[7,7],[11,3],[11,11]];
   ctx.fillStyle = '#5c3f18';
   for (const [r,c] of stars) { ctx.beginPath(); ctx.arc(MARGIN+c*CELL, MARGIN+r*CELL, 4, 0, Math.PI*2); ctx.fill(); }
-  ctx.fillStyle = 'rgba(90,60,20,0.7)';
-  ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#3b2810'; // coordinates: dark enough to read on the wood
+  ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center';
   const cols = 'ABCDEFGHJKLMNOP';
   for (let i = 0; i < BOARD_SIZE; i++) {
     ctx.fillText(cols[i], MARGIN+i*CELL, 14);
@@ -312,7 +312,7 @@ async function flipTable() {
   const say = document.body.appendChild(document.createElement('div'));
   say.innerHTML = '<img src="img/wonjun-rage.jpg" alt="" style="display:block;max-width:80vw;max-height:45vh;border-radius:10px;box-shadow:0 0 40px #c0392b;margin:0 auto 10px"><div>상 엎어!! (╯°□°)╯︵ ┻━┻</div>';
   say.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;pointer-events:none;text-align:center;font:800 clamp(1.4rem,6vw,2.6rem)/1.2 system-ui,sans-serif;color:#fff;text-shadow:0 0 12px #c0392b,0 2px 6px #000;white-space:nowrap';
-  announce('원준이 상을 엎었습니다. 대국이 처음부터 다시 시작됩니다');
+  announce('JOONSAMA가 상을 엎었습니다. 대국이 처음부터 다시 시작됩니다');
   if (rm) await new Promise(r => setTimeout(r, 1500));
   else {
     await wrap.animate(Array.from({length: 18}, () => ({transform: `translate(${rnd(14)}px,${rnd(14)}px) rotate(${rnd(1.5)}deg)`})), {duration: 900}).finished; // earthquake
@@ -420,7 +420,7 @@ function showWinOverlay(player){
     stone.className='modal-stone';
     stone.style.cssText='width:140px;height:140px;background:url(img/wonjun-win.jpg) center/cover;box-shadow:0 4px 20px rgba(0,0,0,0.8),0 0 30px rgba(255,220,50,0.4);';
     winner.textContent='패배';
-    sub.textContent='æ 원준의 지능을 넘지 못했습니다';
+    sub.textContent='JOONSAMA의 지능을 넘지 못했습니다';
   }
   showOverlay('overlay');
 }

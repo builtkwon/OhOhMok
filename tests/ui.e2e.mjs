@@ -27,6 +27,7 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   ok(name+' header tools inert under other overlays', await p.evaluate(()=>document.querySelector('.header-tools').inert&&document.querySelector('header h1').inert));
   ok(name+' select dialog open + focus inside', await p.evaluate(()=>document.getElementById('select-overlay').contains(document.activeElement)));
   await p.click('.level-chip[data-level="hard"]');
+  ok(name+' boss chip says JOONSAMA', (await p.textContent('.level-chip[data-level="boss"]'))==='JOONSAMA');
   ok(name+' level hard checked', await p.evaluate(()=>document.querySelector('.level-chip[data-level=hard]').getAttribute('aria-checked')==='true'&&aiLevel==='hard'));
   await p.keyboard.press('Escape'); await p.waitForTimeout(500);
   ok(name+' Esc back to rule step', await p.evaluate(()=>document.getElementById('rule-overlay').classList.contains('show')&&!document.getElementById('select-overlay').classList.contains('show')));
@@ -35,7 +36,7 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   await p.click('.stone-choice >> nth=0'); await p.waitForTimeout(600);
   ok(name+' no clock without time limit', await p.evaluate(()=>!CLK&&document.getElementById('clock-1').textContent===''));
   ok(name+' game visible/not inert', await p.evaluate(()=>!document.querySelector('.game-layout').inert));
-  ok(name+' names: 나 vs AI (no ZEST/ZAIST)', (await p.textContent('#name-black')).trim()==='나' && (await p.textContent('#name-white'))==='AI 어려움' && (await p.textContent('#turn-text'))==='내 차례');
+  ok(name+' names: 나 vs AI', (await p.textContent('#name-black')).trim()==='나' && (await p.textContent('#name-white'))==='AI 어려움' && (await p.textContent('#turn-text'))==='내 차례');
   ok(name+' Google name shown as text', await p.evaluate(()=>{const s=[Profile.signedIn,Profile.name];Profile.signedIn=()=>true;Profile.name=()=>'<b>홍</b>';updateBadges();updateTurn();
     const r=document.getElementById('name-black').textContent==='<b>홍</b> 나'&&!document.querySelector('#name-black b')&&document.getElementById('turn-text').textContent==='<b>홍</b> 차례';
     [Profile.signedIn,Profile.name]=s;updateBadges();updateTurn();return r;}));
