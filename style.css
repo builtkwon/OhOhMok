@@ -316,6 +316,14 @@
   body.boss-1 .stone.black-stone, body.boss-1 .modal-stone.black-stone, body.boss-1 .player-stone.black { background-image: url(img/wonjun-black.jpg) !important; background-size: cover !important; background-position: center !important; }
   body.boss-2 .stone.white-stone, body.boss-2 .modal-stone.white-stone, body.boss-2 .player-stone.white { background-image: url(img/wonjun-white.jpg) !important; background-size: cover !important; background-position: center !important; }
 
+  /* AI pixel face (쉬움~어려움, AI mode only): body.ai-N = the AI plays color N (app.js applyBoss). Ink is the stone's opposite color. */
+  body.ai-1 :is(.stone.black-stone, .player-stone.black, .modal-stone.black-stone)::before,
+  body.ai-2 :is(.stone.white-stone, .player-stone.white, .modal-stone.white-stone)::before { content: ''; position: absolute; inset: 0; background: var(--face) center/100% no-repeat; }
+  body:is(.ai-1, .ai-2) .stone.rare::before { background-image: var(--face-rare); }
+  body.ai-1 { --face: url(img/ai-face-w.svg); --face-rare: url(img/ai-face-rare-w.svg); }
+  body.ai-2 { --face: url(img/ai-face-b.svg); --face-rare: url(img/ai-face-rare-b.svg); }
+  body.ai-1 .stone.black-stone.last-placed::after, body.ai-2 .stone.white-stone.last-placed::after { inset: 40%; } /* small dot between eyes and mouth */
+
   .stone.black-stone {
     background-size: cover;
     background-position: center top;
@@ -412,6 +420,7 @@
   }
 
   .modal-stone {
+    position: relative;
     width: 56px;
     height: 56px;
     border-radius: 50%;
@@ -626,7 +635,7 @@
   .mode-cards { display: flex; gap: 16px; justify-content: center; }
   .mode-card {
     display: flex; flex-direction: column; align-items: center; gap: 10px;
-    cursor: pointer; padding: 20px 20px; border-radius: 12px;
+    cursor: pointer; padding: 20px 12px; border-radius: 12px;
     border: 2px solid rgba(var(--accent-rgb),0.2);
     background: rgba(255,255,255,0.03);
     transition: all 0.2s ease; width: 130px;
@@ -639,7 +648,7 @@
   }
   .mode-icon { font-size: 2.4rem; line-height: 1; }
   .mode-card-title { font-size: 12px; font-weight: 700; color: var(--text-primary); }
-  .mode-card-desc { font-size: 12px; color: var(--text-secondary); letter-spacing: 0.08em; line-height: 1.4; text-align: center; }
+  .mode-card-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; text-align: center; }
 
   /* Room overlay */
   .room-overlay {

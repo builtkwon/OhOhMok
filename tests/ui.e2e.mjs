@@ -56,6 +56,12 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   await p.evaluate(()=>{gameOver=true;showWinOverlay(1);}); ok(name+' result title shows AI level', (await p.textContent('#overlay .modal-title'))==='AI 대전 · 어려움'); await p.evaluate(()=>{closeOverlay();gameOver=false;});
   await p.evaluate(()=>newGame()); ok(name+' confirm on leaving AI game', dialogs.some(m=>m.includes('종료')));
   ok(name+' still in game after cancel', await p.evaluate(()=>board.flat().filter(Boolean).length===2));
+  // AI pixel face (AI = white here): on the AI's board/panel stones only, rare forced via AI_RARE, none for the boss or in rooms
+  const face=(sel)=>p.evaluate(s=>{const e=document.querySelector(s),b=getComputedStyle(e,'::before');return b.content==='none'?'':(b.backgroundImage.match(/ai-face[\w-]*/)||['?'])[0];},sel);
+  ok(name+' AI stone + AI panel stone wear the face, mine do not', await face('#stones-layer .white-stone')==='ai-face-b'&&await face('.player-stone.white')==='ai-face-b'&&await face('#stones-layer .black-stone')===''&&await face('.player-stone.black')==='');
+  await p.evaluate(()=>{AI_RARE=1;currentPlayer=aiPlayer;doPlaceStone(0,0,false);AI_RARE=0.05;refreshStones();});
+  ok(name+' rare face forced, kept after a redraw', await face('.stone[data-row="0"][data-col="0"]')==='ai-face-rare-b'&&await face('#stones-layer .white-stone:not(.rare)')==='ai-face-b');
+  ok(name+' no face for the boss or in rooms', await p.evaluate(()=>{const s=[aiLevel,gameMode],r=[];setLevel('boss');applyBoss();r.push(document.body.className);gameMode='team';setLevel('hard');applyBoss();r.push(document.body.className);[aiLevel,gameMode]=s;applyBoss();return r.every(c=>!/\bai-\d/.test(c))&&r[0].includes('boss-2')&&document.body.classList.contains('ai-2');})&&await face('#stones-layer .white-stone:not(.rare)')==='ai-face-b');
   // draw / resign (docs/draw-resign.md). Boards set by hand; the human (black) is to move.
   const setB=(fill)=>p.evaluate(f=>{board=Array.from({length:15},(_,r)=>Array.from({length:15},(_,c)=>f==='full'?((Math.floor(c/2)+r)%2)+1:0));if(f==='full'){board[0][0]=board[7][7]=0;}if(f==='ai3'){board[7][7]=board[7][8]=board[7][9]=2;}
     gameOver=false;currentPlayer=humanPlayer;refreshStones();closeOverlay();updateTurn();},fill);

@@ -113,7 +113,14 @@ const aiName = () => aiLevel === 'boss' ? 'JOONSAMA' : 'AI';
 const meName = () => (hasProfile() && Profile.signedIn() && Profile.name()) || ''; // Google name, '' = signed out (shown as 나)
 // boss mode: the AI's stones wear the boss's face (class = which color it plays)
 let rage = false; // set by flipTable, cleared when a new fight starts
-function applyBoss() { document.body.classList.toggle('rage', rage); document.body.classList.toggle('boss-1', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 1); document.body.classList.toggle('boss-2', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 2); }
+// other levels: body.ai-N puts the pixel face on the AI's color N (style.css); never in rooms
+function applyBoss() {
+  const ai = gameMode === 'ai', boss = ai && aiLevel === 'boss';
+  document.body.classList.toggle('rage', rage);
+  for (const n of [1, 2]) { document.body.classList.toggle('boss-' + n, boss && aiPlayer === n); document.body.classList.toggle('ai-' + n, ai && !boss && aiPlayer === n); }
+}
+let AI_RARE = 0.05; // chance an AI stone gets the rare face (tests set 1)
+const aiRare = new Set(); // cells (row*15+col) of this game's rare-faced AI stones, so refreshStones keeps them
 function setLevel(l) {
   aiLevel = l;
   try { localStorage.setItem('ohohmok-level', l); } catch (e) {}
@@ -159,7 +166,7 @@ function updateBadges() {
 
 // ─── BOARD ────────────────────────────────────────────────────
 function initBoard() {
-  aiHist = []; aiOffers = 0; voteNote('');
+  aiHist = []; aiOffers = 0; voteNote(''); aiRare.clear();
   board = Array.from({length: BOARD_SIZE}, () => Array(BOARD_SIZE).fill(0));
   lastPlaced = null; winningCells = [];
   stonesLayer.innerHTML = '';
@@ -207,6 +214,7 @@ function addStoneElement(row, col, player, isLast, isWin) {
   el.dataset.row = row; el.dataset.col = col;
   if (isLast) el.classList.add('last-placed');
   if (isWin) el.classList.add('winning');
+  if (aiRare.has(row * BOARD_SIZE + col)) el.classList.add('rare');
   stonesLayer.appendChild(el);
   return el;
 }
@@ -269,6 +277,7 @@ function doPlaceStone(row, col, triggerAi) {
   document.querySelectorAll('.stone.last-placed').forEach(e=>e.classList.remove('last-placed'));
   lastPlaced = {row, col};
   announce((currentPlayer===1?'흑돌 ':'백돌 ')+coordName(row,col)+' 착수');
+  if (gameMode === 'ai' && currentPlayer === aiPlayer && Math.random() < AI_RARE) aiRare.add(row * BOARD_SIZE + col); // decided once, kept all game
   const isWin = checkWin(row, col);
   addStoneElement(row, col, currentPlayer, true, false);
   if (isWin) {
