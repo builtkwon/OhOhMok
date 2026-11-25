@@ -57,4 +57,19 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   ok(name+' no page errors '+JSON.stringify(errs), errs.length===0);
   await ctx.close();
 }
+{ // storage: zestmok-* copy (ADR 0001) + theme persistence
+  const ctx=await b.newContext({colorScheme:'dark'}); const p=await ctx.newPage(); await p.goto(url);
+  const ls=()=>p.evaluate(()=>({...localStorage}));
+  await p.evaluate(()=>{localStorage.clear();localStorage.setItem('zestmok-level','hard');localStorage.setItem('zestmok-mem-hard','{"m":1}');});
+  await p.reload(); let s=await ls();
+  ok('zestmok-* copied to ohohmok-*, old keys kept', s['ohohmok-level']==='hard'&&s['ohohmok-mem-hard']==='{"m":1}'&&s['zestmok-level']==='hard'&&s['zestmok-mem-hard']==='{"m":1}');
+  await p.evaluate(()=>{localStorage.clear();localStorage.setItem('zestmok-level','hard');localStorage.setItem('ohohmok-level','easy');});
+  await p.reload(); s=await ls();
+  ok('existing ohohmok-level not overwritten', s['ohohmok-level']==='easy'&&await p.evaluate(()=>aiLevel==='easy'));
+  const th=()=>p.evaluate(()=>[document.documentElement.dataset.theme,document.getElementById('theme-btn').getAttribute('aria-pressed')].join());
+  ok('theme follows OS (dark) by default', await th()==='dark,true');
+  await p.evaluate(()=>toggleTheme()); await p.reload();
+  ok('theme toggle persists across reload', await th()==='light,false'&&(await ls())['ohohmok-theme']==='light');
+  await ctx.close();
+}
 await b.close();
