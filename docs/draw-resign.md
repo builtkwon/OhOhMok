@@ -37,6 +37,7 @@
 | G→H | `{type:'vote-reply', ok}` | `ask`에 든 사람만 유효. 거절이면 취소 |
 | H→G | `{type:'vote', kind, from, cancelled:true}` | 거절·시간 초과·게임 종료 |
 
+- 투표 중에는 방의 모든 플레이어에게 진행 상황 "동의 1/4"를 보여준다. 제안자는 동의한 것으로 센다: 분자 = `yes` 수 + 1, 분모 = `ask` 수 + 1(2026-11-25 사용자 결정). 기존 `vote` 메시지로 갱신하고 새 메시지는 없다.
 - `ask`는 처음에 한 번 정한다. 무승부: 제안자를 뺀 접속자 전원. 항복: 제안자 팀의 다른 접속자. `ask` 전원이 `yes`가 되면 결과를 낸다.
 - 방장도 플레이어면 자기 답을 같은 함수로 처리한다.
 - 결과는 기존 snap의 `result`로 보낸다: 항복 `{winner, reason:'resign'}`, 무승부 `{draw:true, reason:'agreed'}`. `room.js`의 result 정리 코드(`reason` 허용 목록)에 `resign`, `agreed`를 추가한다.
