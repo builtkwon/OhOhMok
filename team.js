@@ -82,7 +82,32 @@
   }
   const validClock = (c) => !!c && Number.isFinite(c.main) && c.main >= 0 && Number.isInteger(c.per) && c.per >= 0 && c.per <= BYO_N;
 
-  const api = { MAX_PLAYERS, MAX_TEAM, WIPE_MS, mover, advance, wiped, canPick, canStart, autoTeam, successor, cleanName, validMove, validSnap, validAvatar, BYO_MS, BYO_N, validRule, clockInit, budget, spend, view, validClock };
+  // ── draw / resign (docs/draw-resign.md) ──
+  // Stones of p in its best open window (5 cells in a line, no opponent stone); -1 = p can never make five.
+  function bestWindow(b, p) {
+    let best = -1;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+      const er = r + 4 * dr, ec = c + 4 * dc;
+      if (er >= N || ec < 0 || ec >= N) continue;
+      let k = 0, i = 0;
+      for (; i < 5; i++) { const v = b[r + i * dr][c + i * dc]; if (v === p) k++; else if (v) break; }
+      if (i === 5 && k > best) best = k;
+    }
+    return best;
+  }
+  const noMoves = (b) => bestWindow(b, 1) < 0 && bestWindow(b, 2) < 0;
+  // Vote (kind 'draw' | 'resign'): who to ask now = online members of the proposer's team not yet agreed,
+  // then (draw only) of the other team. [] = everyone online agreed.
+  const VOTE_MAX = 2; // offers per player per game, draw + resign together
+  function voteAsk(ps, kind, fromTeam, yes) {
+    for (const t of kind === 'draw' ? [fromTeam, 3 - fromTeam] : [fromTeam]) {
+      const ask = members(ps, t).map(p => p.id).filter(id => !yes.includes(id));
+      if (ask.length) return ask;
+    }
+    return [];
+  }
+
+  const api = { MAX_PLAYERS, MAX_TEAM, WIPE_MS, mover, advance, wiped, canPick, canStart, autoTeam, successor, cleanName, validMove, validSnap, validAvatar, BYO_MS, BYO_N, validRule, clockInit, budget, spend, view, validClock, bestWindow, noMoves, VOTE_MAX, voteAsk };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.TeamLogic = api;
 })(typeof window !== 'undefined' ? window : globalThis);
