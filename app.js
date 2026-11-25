@@ -546,10 +546,16 @@ function toggleProfileMenu(open) {
   const m = document.getElementById('profile-menu'), btn = document.getElementById('profile-btn');
   if (open === undefined) open = m.hidden;
   m.hidden = !open; btn.setAttribute('aria-expanded', open);
-  if (open) m.querySelector('button').focus(); else if (m.contains(document.activeElement)) btn.focus();
+  if (open) { gsiButton(); m.querySelector('button:not([hidden])').focus(); } else if (m.contains(document.activeElement)) btn.focus();
 }
 document.addEventListener('click', (e) => { if (!document.getElementById('profile-wrap').contains(e.target)) toggleProfileMenu(false); });
 function profileMsg(t) { document.getElementById('pm-msg').textContent = t; if (t) announce(t); }
+let gsiState = ''; // '' | 'ok' | 'fail': official Google button is rendered once, on first menu open (no GIS request on page load)
+function gsiButton() {
+  if (gsiState || Profile.signedIn()) return;
+  gsiState = 'ok';
+  Profile.renderButton(document.getElementById('pm-gsi')).catch(e => { gsiState = 'fail'; profileMsg((e && e.message) || '로그인하지 못했습니다'); renderProfile(); });
+}
 function profileLogin() {
   profileMsg('');
   if (Profile.signedIn()) return Profile.logout();
@@ -565,9 +571,11 @@ function renderProfile() {
   const src = Profile.photo(), btn = document.getElementById('profile-btn');
   btn.style.backgroundImage = src ? `url("${src}")` : ''; // src is validated by Profile (TeamLogic.validAvatar charset: no CSS injection)
   btn.classList.toggle('has-photo', !!src);
-  document.getElementById('pm-login').textContent = Profile.signedIn() ? `로그아웃 (${Profile.name() || 'Google'})` : 'Google 로그인';
-  let up = null; try { up = JSON.parse(localStorage.getItem('ohohmok-profile')).upload; } catch (e) {} // shortcut: reads the §3 key directly; use Profile.hasUpload() if it lands (TODO-CONTRACT)
-  document.getElementById('pm-clear').hidden = !up;
+  const inG = Profile.signedIn(), login = document.getElementById('pm-login');
+  login.textContent = inG ? `로그아웃 (${Profile.name() || 'Google'})` : 'Google 로그인';
+  login.hidden = !inG && gsiState !== 'fail'; // signed out: the official button in #pm-gsi; the One Tap button only if it failed to load
+  document.getElementById('pm-gsi').hidden = inG;
+  document.getElementById('pm-clear').hidden = !Profile.hasUpload();
   document.getElementById('pm-hide').setAttribute('aria-pressed', Profile.hideOthers());
   if (gameMode === 'ai' && !document.getElementById('select-overlay').classList.contains('show')) aiStones(true);
 }

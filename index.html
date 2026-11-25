@@ -29,7 +29,8 @@
     <div class="profile-wrap" id="profile-wrap" hidden>
       <button type="button" class="icon-btn" id="profile-btn" aria-label="프로필" aria-haspopup="true" aria-expanded="false" aria-controls="profile-menu" onclick="toggleProfileMenu()"></button>
       <div class="profile-menu" id="profile-menu" hidden>
-        <button type="button" id="pm-login" onclick="profileLogin()">Google 로그인</button>
+        <div id="pm-gsi"></div>
+        <button type="button" id="pm-login" onclick="profileLogin()" hidden>Google 로그인</button>
         <button type="button" onclick="document.getElementById('pm-file').click()">사진 올리기</button>
         <input type="file" accept="image/*" id="pm-file" hidden onchange="profileUpload(this)">
         <button type="button" id="pm-clear" onclick="Profile.clearUpload()">사진 지우기</button>
