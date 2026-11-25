@@ -787,3 +787,15 @@
   #pm-hide[aria-pressed="true"]::before { content: '☑ '; color: var(--accent); }
   .pm-msg { font-size: 0.75rem; color: var(--danger); padding: 0 12px; }
   .pm-msg:empty { display: none; }
+
+  /* draw / resign (docs/draw-resign.md) */
+  .game-actions { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+  .game-actions[hidden], .vote-box[hidden] { display: none; }
+  .game-actions .btn { width: auto; padding: 6px 18px; font-size: 0.85rem; }
+  #draw-btn.hot { background: var(--accent); color: var(--bg); animation: drawPulse 1.6s ease-in-out infinite; }
+  @keyframes drawPulse { 50% { box-shadow: 0 0 16px rgba(var(--accent-rgb),0.7); } }
+  @media (prefers-reduced-motion: reduce) { #draw-btn.hot { animation: none; } }
+  .vote-box { margin: 8px auto 0; max-width: 360px; padding: 10px 12px; text-align: center; font-size: 0.85rem; color: var(--text-primary); border: 1px solid var(--accent); border-radius: 8px; background: rgba(var(--accent-rgb),0.08); }
+  .vote-box .modal-btns { margin-top: 8px; }
+  .vote-box .btn { padding: 6px 18px; }
+  .vote-box .modal-btns[hidden] { display: none; }

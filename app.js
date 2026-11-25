@@ -109,7 +109,8 @@ for (const k of ['level', ...Object.keys(LEVEL_NAMES).map(l => 'mem-' + l)]) {
 }
 try { const v = localStorage.getItem('ohohmok-level'); if (LEVEL_NAMES[v]) aiLevel = v; } catch (e) {}
 function levelName() { return LEVEL_NAMES[aiLevel]; }
-const aiName = () => aiLevel === 'boss' ? 'æ 원준' : 'ZAIST';
+const aiName = () => aiLevel === 'boss' ? 'æ 원준' : 'AI';
+const meName = () => (hasProfile() && Profile.signedIn() && Profile.name()) || ''; // Google name, '' = signed out (shown as 나)
 // boss mode: the AI's stones wear the boss's face (class = which color it plays)
 let rage = false; // set by flipTable, cleared when a new fight starts
 function applyBoss() { document.body.classList.toggle('rage', rage); document.body.classList.toggle('boss-1', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 1); document.body.classList.toggle('boss-2', gameMode === 'ai' && aiLevel === 'boss' && aiPlayer === 2); }
@@ -144,13 +145,14 @@ function updateBadges() {
   const nWhite = document.getElementById('name-white');
   const lBlack = document.getElementById('label-black');
   const lWhite = document.getElementById('label-white');
-  if (humanPlayer === 1) {
-    nBlack.innerHTML = 'ZEST <span class="player-badge badge-human" id="badge-black">나</span>';
-    nWhite.innerHTML = aiName()+' <span class="player-badge badge-ai" id="badge-white">AI · '+levelName()+'</span>';
-  } else {
-    nBlack.innerHTML = aiName()+' <span class="player-badge badge-ai" id="badge-black">AI · '+levelName()+'</span>';
-    nWhite.innerHTML = 'ZEST <span class="player-badge badge-human" id="badge-white">나</span>';
-  }
+  // names via textContent (the Google name is user data)
+  const card = (el, name, cls, badge) => {
+    el.textContent = name + ' ';
+    if (badge) { const s = el.appendChild(document.createElement('span')); s.className = 'player-badge ' + cls; s.textContent = badge; }
+  };
+  const [hEl, aEl] = humanPlayer === 1 ? [nBlack, nWhite] : [nWhite, nBlack];
+  card(hEl, meName() || '나', 'badge-human', meName() && '나');
+  card(aEl, aiName(), 'badge-ai', aiLevel === 'boss' ? 'AI' : levelName());
   lBlack.textContent = '흑돌 · 선공';
   lWhite.textContent = '백돌 · 후공';
 }
@@ -222,12 +224,13 @@ function refreshStones() {
 function isForbidden(row, col, player) {
   return player === 1 && board[row][col] === 0 && GomokuAI.forbidden(board, row, col);
 }
-function flashForbidden() {
-  const t = document.getElementById('turn-text'), old = t.textContent;
-  t.textContent = '금수 (쌍삼 · 장목) 자리입니다';
-  announce('금수 자리입니다');
-  setTimeout(() => { if (t.textContent === '금수 (쌍삼 · 장목) 자리입니다') t.textContent = old; }, 1200);
+// short message in the status line, then back to the turn text
+function flashTurn(msg, sr) {
+  const t = document.getElementById('turn-text');
+  t.textContent = msg; announce(sr || msg);
+  setTimeout(() => { if (t.textContent === msg) updateTurn(); }, 1500);
 }
+const flashForbidden = () => flashTurn('금수 (쌍삼 · 장목) 자리입니다', '금수 자리입니다');
 function handleClick(row, col) {
   if (gameOver || aiThinking) return;
   if (myTurn() && isForbidden(row, col, gameMode === 'team' ? TM.turn.team : currentPlayer)) return flashForbidden();
@@ -294,6 +297,7 @@ function doAiMove() {
   setTimeout(()=>{
     const move = GomokuAI.bestMove(board, aiPlayer, aiLevel);
     aiThinking = false; setAiThinking(false);
+    if (gameOver) return; // resigned while the AI was thinking
     if (move && move.doomed && aiLevel === 'boss' && !flipUsed) return flipTable();
     if (move) doPlaceStone(move.row, move.col, false);
   }, 80);
@@ -316,7 +320,7 @@ async function flipTable() {
     await wrap.animate([{transform: 'none', opacity: 1}, {transform: 'perspective(900px) rotateX(80deg) translateY(60px)', opacity: 0}], {duration: 900, easing: 'ease-in', fill: 'forwards'}).finished; // board tips over
   }
   say.remove();
-  if (board !== B || gameMode !== 'ai') { wrap.getAnimations().forEach(a => a.cancel()); return; } // player left mid-flip
+  if (board !== B || gameMode !== 'ai' || gameOver) { wrap.getAnimations().forEach(a => a.cancel()); return; } // player left or resigned mid-flip
   aiPlayer = 1; humanPlayer = 2; // AI always opens the restarted game (black)
   rage = true; updateBadges(); // AI stones = angry photo for this game only
   gameOver = false; currentPlayer = 1;
@@ -353,14 +357,42 @@ function updateTurn(){
   dot.style.background=currentPlayer===1?'#222':'#e8e0d0';
   dot.style.border=currentPlayer===2?'1px solid #999':'none';
   dot.style.boxShadow=currentPlayer===1?'0 0 6px rgba(0,0,0,0.8)':'0 0 6px rgba(255,255,255,0.6)';
-  if(gameMode==='ai'){
-    const isAiTurn=currentPlayer===aiPlayer;
-    const name=currentPlayer===humanPlayer?'ZEST':aiName();
-    text.textContent=isAiTurn?`${name} (AI) 차례`:`${name} 차례`;
-  } else text.textContent=tmTurnText();
+  if(gameMode==='ai') text.textContent=currentPlayer===humanPlayer?(meName()?meName()+' 차례':'내 차례'):aiName()+' 차례';
+  else text.textContent=tmTurnText();
+  // nobody can make five any more (docs/draw-resign.md §1): say so, keep playing, push the draw button
+  const stuck=!gameOver&&board.length>0&&TeamLogic.noMoves(board); // board is empty [] until Init (renderProfile runs first)
+  if(stuck)text.textContent='더 이상 둘 수가 없습니다 · '+text.textContent;
+  updateActions(stuck);
   if(document.activeElement===clickCanvas)kbShow();
   document.getElementById('card-black').classList.toggle('active',currentPlayer===1);
   document.getElementById('card-white').classList.toggle('active',currentPlayer===2);
+}
+
+// draw / resign buttons: shown during a game; draw only on my (team's) turn
+function updateActions(stuck){
+  const team=gameMode==='team', live=!gameOver&&(!team||!!(TM&&TM.started&&tmMe()));
+  const left=!team||(!!TM&&!TM.vote&&(TM.offers[TM.me]||0)<TeamLogic.VOTE_MAX); // rooms: 2 offers each, one vote at a time
+  const draw=document.getElementById('draw-btn'), res=document.getElementById('resign-btn');
+  document.getElementById('game-actions').hidden=!live;
+  draw.style.visibility=live&&left&&currentPlayer===myStoneColor()?'':'hidden';
+  draw.classList.toggle('hot',!!stuck);
+  res.disabled=!left;
+}
+function offerDraw(){
+  if(gameOver||currentPlayer!==myStoneColor())return;
+  if(gameMode==='team')return tmVoteStart('draw');
+  if(aiThinking)return;
+  // AI (boss too) takes the draw when it has no open window with 3+ of its stones
+  if(TeamLogic.bestWindow(board,aiPlayer)>2)return flashTurn(aiName()+': 무승부 거절');
+  gameOver=true; aiLearn(0); updateTurn(); clockDraw();
+  showDrawOverlay(`합의 무승부 (${aiName()} 수락)`);
+}
+function resign(){
+  if(gameOver||!confirm('정말 항복할까요?'))return;
+  if(gameMode==='team')return tmVoteStart('resign');
+  gameOver=true; scores[aiPlayer]++; updateScores(); aiLearn(aiPlayer); updateTurn(); clockDraw(); // learned as an AI win
+  announce('항복');
+  showEndOverlay('항복 패배',aiName()+'에게 항복했습니다.');
 }
 
 function updateScores(){
@@ -381,7 +413,7 @@ function showWinOverlay(player){
   stone.className=`modal-stone ${player===1?'black-stone':'white-stone'}`;
   stone.style.background=''; stone.style.boxShadow=''; stone.style.width=''; stone.style.height='';
   const isHuman=player===humanPlayer; // AI games only (rooms use tmShowEnd)
-  winner.textContent=isHuman?'ZEST 승리! 🎉':aiName()+' 승리!';
+  winner.textContent=isHuman?(meName()?meName()+' ':'')+'승리! 🎉':aiName()+' 승리!';
   sub.textContent=isHuman?'당신이 이겼습니다!':'🤖 AI가 이겼습니다';
   resultTitle('승리');
   if(gameMode==='ai'&&aiLevel==='boss'&&!isHuman){ // lost to the boss: his portrait + "패배"
@@ -393,15 +425,7 @@ function showWinOverlay(player){
   showOverlay('overlay');
 }
 
-function showDrawOverlay(){
-  const overlay=document.getElementById('overlay');
-  document.getElementById('modal-stone').style.cssText='background:linear-gradient(135deg,#222 50%,#ccc 50%)';
-  document.getElementById('modal-stone').style.boxShadow='0 4px 20px rgba(0,0,0,0.5)';
-  document.getElementById('modal-winner').textContent='무승부!';
-  document.getElementById('modal-sub').textContent='보드가 가득 찼습니다';
-  resultTitle('승리');
-  showOverlay('overlay');
-}
+function showDrawOverlay(sub){ showEndOverlay('무승부!',sub||'보드가 가득 찼습니다'); }
 
 function closeOverlay(){ hideOverlay('overlay'); }
 
@@ -578,7 +602,7 @@ function renderProfile() {
   if (!inG && !document.getElementById('profile-menu').hidden) gsiButton(); // signed out with the menu open (e.g. right after logout)
   document.getElementById('pm-clear').hidden = !Profile.hasUpload();
   document.getElementById('pm-hide').setAttribute('aria-pressed', Profile.hideOthers());
-  if (gameMode === 'ai' && !document.getElementById('select-overlay').classList.contains('show')) aiStones(true);
+  if (gameMode === 'ai' && !document.getElementById('select-overlay').classList.contains('show')) { updateBadges(); updateTurn(); } // Google name may have changed
 }
 if (hasProfile()) {
   document.getElementById('profile-wrap').hidden = false;
