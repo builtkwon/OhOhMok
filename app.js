@@ -520,6 +520,16 @@ function scaleBoard(){
 window.addEventListener('resize',scaleBoard);
 window.addEventListener('orientationchange',scaleBoard);
 
+// ─── THEME (attribute set before paint by the inline script in index.html) ───
+function setTheme(t, save) {
+  document.documentElement.dataset.theme = t;
+  document.querySelector('meta[name=theme-color]').content = t === 'light' ? '#f2f2f2' : '#161616';
+  document.getElementById('theme-btn').setAttribute('aria-pressed', t === 'dark');
+  if (save) try { localStorage.setItem('ohohmok-theme', t); } catch (e) {}
+}
+function toggleTheme() { setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light', true); }
+
 // Init
+setTheme(document.documentElement.dataset.theme);
 initBoard(); updateTurn(); updateScores(); scaleBoard();
 showOverlay('mode-overlay');

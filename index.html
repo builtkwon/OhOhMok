@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZESTMOK - 오목</title>
 <meta name="description" content="ZEST와 함께하는 오목 대전">
-<meta name="theme-color" content="#2b1f0e">
+<meta name="theme-color" content="#161616">
+<!-- theme before first paint (no flash): saved choice, else the OS setting -->
+<script>(function(){var t;try{t=localStorage.getItem('ohohmok-theme')}catch(e){}if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=t;document.querySelector('meta[name=theme-color]').content=t==='light'?'#f2f2f2':'#161616'})()</script>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://0.peerjs.com wss://0.peerjs.com; object-src 'none'; base-uri 'self'; form-action 'none'">
 <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
 <meta property="og:type" content="website">
@@ -22,6 +24,9 @@
 <body>
 
 <header>
+  <div class="header-tools">
+    <button type="button" class="icon-btn" id="theme-btn" aria-label="다크 모드" aria-pressed="true" onclick="toggleTheme()"></button>
+  </div>
   <h1>ZESTMOK<span>오목 · GOMOKU</span></h1>
 </header>
 
