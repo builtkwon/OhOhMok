@@ -771,3 +771,14 @@
   .icon-btn:hover { border-color: var(--accent); }
   #theme-btn::before { content: '☾'; }
   :root[data-theme="light"] #theme-btn::before { content: '☀'; }
+  .profile-wrap { position: relative; }
+  #profile-btn:not(.has-photo)::before { content: '👤'; }
+  .profile-menu { position: absolute; right: 0; top: 48px; min-width: 200px; display: flex; flex-direction: column; padding: 6px; background: var(--modal-bg); border: 1px solid rgba(var(--accent-rgb),0.4); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
+  .profile-menu[hidden] { display: none; }
+  .profile-menu button { font: inherit; font-size: 0.85rem; text-align: left; padding: 10px 12px; border: none; border-radius: 6px; background: none; color: var(--text-primary); cursor: pointer; }
+  .profile-menu button:hover { background: rgba(var(--accent-rgb),0.12); }
+  .profile-menu button:disabled { opacity: 0.4; cursor: default; }
+  #pm-hide::before { content: '☐ '; }
+  #pm-hide[aria-pressed="true"]::before { content: '☑ '; color: var(--accent); }
+  .pm-msg { font-size: 0.75rem; color: var(--danger); padding: 0 12px; }
+  .pm-msg:empty { display: none; }

@@ -1,14 +1,18 @@
 // UI E2E (local, no network). Run: npm run test:ui
 import { chromium, devices } from 'playwright';
+import { existsSync } from 'node:fs';
 const url=new URL('../index.html',import.meta.url).href;
 const b=await chromium.launch({args:['--disable-features=WebRtcHideLocalIpsWithMdns']});
+// profile.js is built in a parallel branch; until merged its absence is not a failure
+const noProfile=!existsSync(new URL('../profile.js',import.meta.url));
 const ok=(n,c)=>{console.log(c?'PASS':'FAIL',n);if(!c)process.exitCode=1;};
 for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobile',{...devices['iPhone 13']}]]) {
   const ctx=await b.newContext(opts); const p=await ctx.newPage(); const errs=[],bad=[];
-  p.on('pageerror',e=>errs.push(e.message)); p.on('response',r=>{if(r.status()>=400)bad.push(r.url())}); p.on('requestfailed',r=>bad.push(r.url()));
+  p.on('pageerror',e=>errs.push(e.message)); p.on('response',r=>{if(r.status()>=400)bad.push(r.url())}); p.on('requestfailed',r=>{if(!(noProfile&&r.url().endsWith('/profile.js')))bad.push(r.url())});
+  const ext=[]; p.on('request',r=>{if(!/^(file|data|blob):/.test(r.url()))ext.push(r.url())});
   const dialogs=[]; p.on('dialog',d=>{dialogs.push(d.message());d.dismiss()});
   await p.goto(url); await p.waitForTimeout(300);
-  ok(name+' no external requests/failures', bad.length===0 && true); if(bad.length)console.log(bad);
+  ok(name+' no external requests/failures', bad.length===0&&ext.length===0); if(bad.length||ext.length)console.log(bad,ext);
   ok(name+' mode overlay focused', await p.evaluate(()=>document.activeElement.classList.contains('mode-card')));
   ok(name+' background inert', await p.evaluate(()=>document.querySelector('.game-layout').inert));
   ok(name+' hidden overlays not focusable', await p.evaluate(()=>['select-overlay','rule-overlay','team-overlay','overlay'].every(id=>getComputedStyle(document.getElementById(id)).visibility==='hidden')));
