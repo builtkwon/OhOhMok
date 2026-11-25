@@ -1,6 +1,8 @@
 // UI E2E (local, no network). Run: npm run test:ui
 import { chromium, devices } from 'playwright';
 import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 const url=new URL('../index.html',import.meta.url).href;
 const b=await chromium.launch({args:['--disable-features=WebRtcHideLocalIpsWithMdns']});
 // profile.js is built in a parallel branch; until merged its absence is not a failure
@@ -13,6 +15,8 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   const dialogs=[]; p.on('dialog',d=>{dialogs.push(d.message());d.message().includes('항복')?d.accept():d.dismiss()}); // accept only the resign confirm
   await p.goto(url); await p.waitForTimeout(300);
   ok(name+' no external requests/failures', bad.length===0&&ext.length===0); if(bad.length||ext.length)console.log(bad,ext);
+  ok(name+' name 오오목 (title, h1, mode select) + og description', await p.evaluate(()=>document.title==='오오목'&&document.querySelector('h1').firstChild.textContent==='오오목'&&document.getElementById('mode-title').textContent==='오오목'
+    &&['meta[property="og:description"]','meta[name=description]'].every(s=>document.querySelector(s).content==='히든 미션 오오목을 완수하라!')));
   ok(name+' mode overlay focused', await p.evaluate(()=>document.activeElement.classList.contains('mode-card')));
   ok(name+' background inert', await p.evaluate(()=>document.querySelector('.game-layout').inert));
   ok(name+' hidden overlays not focusable', await p.evaluate(()=>['select-overlay','rule-overlay','team-overlay','overlay'].every(id=>getComputedStyle(document.getElementById(id)).visibility==='hidden')));
@@ -52,6 +56,12 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   await p.evaluate(()=>{gameOver=true;showWinOverlay(1);}); ok(name+' result title shows AI level', (await p.textContent('#overlay .modal-title'))==='AI 대전 · 어려움'); await p.evaluate(()=>{closeOverlay();gameOver=false;});
   await p.evaluate(()=>newGame()); ok(name+' confirm on leaving AI game', dialogs.some(m=>m.includes('종료')));
   ok(name+' still in game after cancel', await p.evaluate(()=>board.flat().filter(Boolean).length===2));
+  // AI pixel face (AI = white here): on the AI's board/panel stones only, rare forced via AI_RARE, none for the boss or in rooms
+  const face=(sel)=>p.evaluate(s=>{const e=document.querySelector(s),b=getComputedStyle(e,'::before');return b.content==='none'?'':(b.backgroundImage.match(/ai-face[\w-]*/)||['?'])[0];},sel);
+  ok(name+' AI stone + AI panel stone wear the face, mine do not', await face('#stones-layer .white-stone')==='ai-face-b'&&await face('.player-stone.white')==='ai-face-b'&&await face('#stones-layer .black-stone')===''&&await face('.player-stone.black')==='');
+  await p.evaluate(()=>{AI_RARE=1;currentPlayer=aiPlayer;doPlaceStone(0,0,false);AI_RARE=0.05;refreshStones();});
+  ok(name+' rare face forced, kept after a redraw', await face('.stone[data-row="0"][data-col="0"]')==='ai-face-rare-b'&&await face('#stones-layer .white-stone:not(.rare)')==='ai-face-b');
+  ok(name+' no face for the boss or in rooms', await p.evaluate(()=>{const s=[aiLevel,gameMode],r=[];setLevel('boss');applyBoss();r.push(document.body.className);gameMode='team';setLevel('hard');applyBoss();r.push(document.body.className);[aiLevel,gameMode]=s;applyBoss();return r.every(c=>!/\bai-\d/.test(c))&&r[0].includes('boss-2')&&document.body.classList.contains('ai-2');})&&await face('#stones-layer .white-stone:not(.rare)')==='ai-face-b');
   // draw / resign (docs/draw-resign.md). Boards set by hand; the human (black) is to move.
   const setB=(fill)=>p.evaluate(f=>{board=Array.from({length:15},(_,r)=>Array.from({length:15},(_,c)=>f==='full'?((Math.floor(c/2)+r)%2)+1:0));if(f==='full'){board[0][0]=board[7][7]=0;}if(f==='ai3'){board[7][7]=board[7][8]=board[7][9]=2;}
     gameOver=false;currentPlayer=humanPlayer;refreshStones();closeOverlay();updateTurn();},fill);
@@ -93,7 +103,7 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   ok(name+' 5분 clock', /⏱ [45]:\d\d/.test(await p.textContent('#clock-1')));
   await p.evaluate(()=>{CLK.t0-=300500;}); await p.waitForTimeout(300);
   ok(name+' main time used up -> 초읽기', /초읽기 \d+초 · 3회/.test(await p.textContent('#clock-1')) && await p.evaluate(()=>!gameOver));
-  const fonts=await p.evaluate(()=>getComputedStyle(document.body).fontFamily); 
+  ok(name+" Galmuri on body + buttons, font loaded", await p.evaluate(async()=>{await document.fonts.ready;return [document.body,document.querySelector(".btn"),document.querySelector(".level-chip")].every(e=>getComputedStyle(e).fontFamily.startsWith("Galmuri11"))&&document.fonts.check("12px Galmuri11")&&document.fonts.check("700 12px Galmuri11")&&[...document.fonts].some(f=>f.family==="Galmuri11"&&f.status==="loaded");}));
   ok(name+' no page errors '+JSON.stringify(errs), errs.length===0);
   await ctx.close();
 }
@@ -111,5 +121,19 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   await p.evaluate(()=>toggleTheme()); await p.reload();
   ok('theme toggle persists across reload', await th()==='light,false'&&(await ls())['ohohmok-theme']==='light');
   await ctx.close();
+}
+{ // PWA manifest: Chromium only reads it over http, so serve the repo on localhost for this block
+  const root=new URL('..',import.meta.url), types={html:'text/html',js:'text/javascript',css:'text/css',png:'image/png',svg:'image/svg+xml',woff2:'font/woff2',webmanifest:'application/manifest+json'};
+  const srv=createServer(async(q,r)=>{try{const f=new URL('.'+decodeURIComponent(q.url.split('?')[0]).replace(/\/$/,'/index.html'),root);r.writeHead(200,{'content-type':types[f.pathname.split('.').pop()]||'application/octet-stream'});r.end(await readFile(f));}catch(e){r.writeHead(404);r.end();}});
+  await new Promise(r=>srv.listen(0,'127.0.0.1',r)); const base=`http://127.0.0.1:${srv.address().port}/`;
+  const ctx=await b.newContext(); const p=await ctx.newPage(); await p.goto(base);
+  const href=await p.evaluate(()=>document.querySelector('link[rel=manifest]')?.href);
+  const cdp=await ctx.newCDPSession(p); const m=await cdp.send('Page.getAppManifest');
+  const j=JSON.parse(m.data||'{}'), icons=j.icons||[];
+  ok('manifest linked, parsed without errors '+JSON.stringify(m.errors), href===base+'manifest.webmanifest'&&m.errors.length===0&&j.name==='오오목'&&j.short_name==='오오목'&&j.display==='standalone'&&j.start_url==='./');
+  ok('manifest icons 192/512 any + 512 maskable, all fetchable at their size', icons.some(i=>i.sizes==='192x192')&&icons.some(i=>i.sizes==='512x512'&&i.purpose==='maskable')&&
+    (await Promise.all([...icons.map(i=>[i.src,i.sizes]),['img/apple-touch-icon.png','180x180']].map(([s,z])=>p.evaluate(async([s,z])=>{const im=new Image();im.src=s;await im.decode();return im.naturalWidth+'x'+im.naturalHeight===z;},[s,z])))).every(Boolean));
+  ok('apple-touch-icon + app title meta', await p.evaluate(()=>!!document.querySelector('link[rel=apple-touch-icon]')&&document.querySelector('meta[name=apple-mobile-web-app-title]').content==='오오목'));
+  await ctx.close(); srv.close();
 }
 await b.close();

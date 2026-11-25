@@ -1,6 +1,6 @@
-# OhOhMok (오목)
+# 오오목 (OhOhMok)
 
-브라우저에서 즐기는 오목 게임. 내 사진을 돌로 쓸 수 있습니다. 15×15 판, 한국식 규칙(흑 쌍삼·장목 금지).
+히든 미션 오오목을 완수하라! 브라우저에서 즐기는 오목 게임. 내 사진을 돌로 쓸 수 있습니다. 15×15 판, 한국식 규칙(흑 쌍삼·장목 금지).
 
 - **한국식 규칙 (모든 모드 공통)** — 흑은 쌍삼(3-3)·장목(6목 이상)을 둘 수 없음(4-4와 정확히 5목은 허용), 백은 제한 없음. 금수 자리를 누르면 착수되지 않고 안내가 뜸. 팀전은 방장이, 온라인은 받는 쪽이 한 번 더 검증
 - **AI 대전** — 쉬움 / 보통 / 어려움 / JOONSAMA (결과 화면에 "AI 대전 · 난이도" 표시). 사람·AI 모두 위 규칙을 따름
@@ -8,10 +8,23 @@
 - **방 만들기** (구 팀전, 1:1 온라인 대전 통합) — 최대 4명(1:1, 2:2, 3:1 등). 방장이 팀을 골라 방을 만들고, 참가자는 로비에서 팀 선택. 팀원이 나가도 계속 진행, 한 팀 전원이 30초 넘게 이탈하면 패배. 방장이 나가면 다음 접속자가 방장 승계
 - **무승부 제안·항복** — 게임 중 언제든 "무승부 제안"(차례 상관없음), "항복"(확인 창). 흑·백 모두 5목을 만들 수 없는 판이 되면 "더 이상 둘 수가 없습니다"를 띄우고 무승부 버튼을 강조(게임은 계속, 판이 다 차면 무승부). AI는 3개 이상 든 열린 줄이 없으면 무승부를 받음(보스도 같음), 항복은 AI 승리로 학습. 방에서는 투표: 무승부는 접속 중인 모든 플레이어에게 한꺼번에 묻고 전원 동의, 항복은 자기 팀 전원 동의(혼자면 확인 창만), 20초 안에 답이 없거나 한 명이라도 거절하면 취소되고, 취소 이유(누가 거절했는지·시간 초과·참가자 이탈)를 모두에게 4초 동안 알림. 무승부 제안은 한 사람당 한 판에 2번(AI 대전도), 항복은 제한 없음. 투표 중에는 패널의 버튼 줄(새 게임·무승부 제안·항복) 자리에 투표 창("○○님의 무승부 제안 · 동의 n/m (18초)" + 답할 사람에게만 동의/거절)이 대신 뜨고 끝나면 버튼이 돌아옴(판을 가리지 않음). 두 버튼은 늘 보이고, 쓸 수 없을 때(무승부 횟수 다 씀·투표 중·AI 생각 중·게임 중 아님)는 비활성 + 이유 표시. 상대 팀이 아무도 접속해 있지 않으면 무승부는 제안할 수 없고, 투표 중 상대 팀이 모두 나가면 취소. AI 대전 이름은 Google 로그인 이름(없으면 "나") vs "AI"(보스는 JOONSAMA). 설계: [`docs/draw-resign.md`](docs/draw-resign.md)
 - **사진 돌** — 사진을 올리거나 Google로 로그인하면 내 돌에 내 사진이 들어감(배경은 자동으로 지움, 안 되면 사진 그대로). 방에서는 각 팀 첫 플레이어의 사진. 다른 사람 사진 숨기기, 방장은 참가자 사진 끄기 가능
+- **AI 얼굴** — 쉬움·보통·어려움 AI 대전에서 AI 돌(패널 돌, AI가 이긴 결과 창 돌 포함)에 픽셀 얼굴 `^‿^`이 그려짐. 흑돌엔 흰 얼굴, 백돌엔 검은 얼굴. AI 돌마다 5% 확률로 보라·흰 반짝이 눈의 레어 얼굴(둘 때 정해져 그 판 내내 유지). JOONSAMA는 사진 규칙 그대로, 방에는 없음
+- **픽셀 글꼴** — 화면 전체(판 좌표 포함)에 갈무리11([Galmuri](https://github.com/quiple/galmuri), quiple, SIL OFL 1.1). 저장소에 들어 있어 외부 요청 없음(`vendor/fonts/`)
+- **앱으로 설치(PWA)** — 홈 화면에 추가하면 주소창 없이 열림(아래 [앱으로 설치](#앱으로-설치pwa))
 - **다크/라이트 테마** — 헤더 버튼으로 전환(처음엔 OS 설정을 따름). 회색 바탕 + 진녹색 강조, 바둑판은 그대로
 - 모바일 터치, 키보드 조작(방향키 + Enter/Space), 스크린리더 안내 지원
 
 배포: https://builtkwon.github.io/OhOhMok/ (GitHub Pages, `main` 브랜치 루트). [ZESTMOK](https://builtkwon.github.io/ZESTMOK/)에서 분리한 새 버전이며, ZESTMOK은 따로 계속 서비스합니다.
+
+## 앱으로 설치(PWA)
+
+배포 주소(https://builtkwon.github.io/OhOhMok/)를 연 뒤:
+
+- **Android(Chrome)**: 메뉴(⋮) → "홈 화면에 추가" 또는 "앱 설치"
+- **iPhone·iPad(Safari)**: 공유 버튼 → "홈 화면에 추가"
+- **PC(Chrome·Edge)**: 주소창 오른쪽 설치 아이콘(⊕) 또는 메뉴 → "앱 설치"
+
+이름은 "오오목", 아이콘은 픽셀아트 마스코트입니다(`manifest.webmanifest`, `img/icon-*.png`, `img/apple-touch-icon.png`). 서비스 워커·오프라인 캐시는 쓰지 않습니다. 설치해도 인터넷이 있어야 열리고, 늘 최신 배포본을 불러옵니다.
 
 ## AI 난이도
 
@@ -88,7 +101,7 @@ npm run serve   # http://localhost:8080
 
 | 파일 | 설명 |
 |---|---|
-| `index.html` | 화면 마크업. 스크립트를 classic `<script>`로 순서대로 읽음(peerjs → `ai.js` → `team.js` → `profile.js` → `clock.js` → `room.js` → `app.js`). 테마는 `<head>`의 짧은 스크립트가 첫 화면 전에 정함(`ohohmok-theme`) |
+| `index.html` | 화면 마크업. 매니페스트·홈 화면 아이콘 링크. 스크립트를 classic `<script>`로 순서대로 읽음(peerjs → `ai.js` → `team.js` → `profile.js` → `clock.js` → `room.js` → `app.js`). 테마는 `<head>`의 짧은 스크립트가 첫 화면 전에 정함(`ohohmok-theme`) |
 | `style.css` | 스타일. 기본 돌은 단색(`--stone-black`/`--stone-white`), 사진 돌은 `--stone-black-img`/`--stone-white-img` |
 | `app.js` | 게임 진행·판·입력·AI 대전·결과 창, 시작(Init) |
 | `profile.js` | 사진 돌: 업로드·배경 지우기·Google 로그인·저장, 돌에 사진 적용(전역 `Profile`) |
@@ -96,8 +109,10 @@ npm run serve   # http://localhost:8080
 | `clock.js` | 시계(일반전/속기전 표시·시간 초과) |
 | `ai.js` | AI (패턴 평가 + 알파베타 탐색 + 대국 학습) |
 | `team.js` | 방 규칙(순번, 시작 조건, 방장 승계, 사진 주소 검사) + 시간 제한(일반전/속기전) 순수 로직 |
-| `img/` | JOONSAMA 보스 이미지, 파비콘, 공유용 OG 이미지 (기본 돌은 사진 없이 CSS) |
+| `img/` | JOONSAMA 보스 이미지, 파비콘, 공유용 OG 이미지, 앱 아이콘(`icon-192/512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`), AI 얼굴 SVG(`ai-face-{b,w}.svg`·`ai-face-rare-{b,w}.svg`, b=검은 잉크/w=흰 잉크) (기본 돌은 사진 없이 CSS) |
+| `manifest.webmanifest` | PWA 매니페스트(이름 오오목, standalone, 아이콘) |
 | `vendor/peerjs.min.js` | PeerJS 1.5.4 (MIT) |
+| `vendor/fonts/` | 갈무리11 보통·굵게 woff2 2.40.3 (SIL OFL 1.1, `LICENSE`·출처·SHA-256은 `vendor/fonts/README.md`) |
 | `vendor/mediapipe/` | MediaPipe Tasks Vision 1.2.2 + selfie segmenter (Apache-2.0), 배경 지우기용, 필요할 때만 로드 |
 | `tests/` | 테스트 + AI 측정 도구(`duel.js`, `duel-record.js`, `analyze-losses.js`) |
 | `docs/` | 설계·측정 기록 ([`boss-ai.md`](docs/boss-ai.md): 보스 AI 측정 결과와 검토 대기 안, [`profile-stones.md`](docs/profile-stones.md): 프로필 사진 돌 설계, [`draw-resign.md`](docs/draw-resign.md): 무승부·항복 설계) |
@@ -108,7 +123,7 @@ npm run serve   # http://localhost:8080
 ```sh
 npm test                    # AI·방·프로필 단위 테스트 (Node만 필요)
 npm i && npx playwright install chromium
-npm run test:ui             # 브라우저 UI/키보드/모바일 테스트 (로컬)
+npm run test:ui             # 브라우저 UI/키보드/모바일·글꼴·AI 얼굴·매니페스트 테스트 (로컬, 인터넷 불필요)
 npm run test:team           # 4개 브라우저 방 만들기 E2E + 1:1 속기전 + 무승부·항복 투표 (인터넷 필요)
 ```
 
