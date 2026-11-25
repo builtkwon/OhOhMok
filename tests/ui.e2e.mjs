@@ -13,6 +13,8 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   const dialogs=[]; p.on('dialog',d=>{dialogs.push(d.message());d.message().includes('항복')?d.accept():d.dismiss()}); // accept only the resign confirm
   await p.goto(url); await p.waitForTimeout(300);
   ok(name+' no external requests/failures', bad.length===0&&ext.length===0); if(bad.length||ext.length)console.log(bad,ext);
+  ok(name+' name 오오목 (title, h1, mode select) + og description', await p.evaluate(()=>document.title==='오오목'&&document.querySelector('h1').firstChild.textContent==='오오목'&&document.getElementById('mode-title').textContent==='오오목'
+    &&['meta[property="og:description"]','meta[name=description]'].every(s=>document.querySelector(s).content==='히든 미션 오오목을 완수하라!')));
   ok(name+' mode overlay focused', await p.evaluate(()=>document.activeElement.classList.contains('mode-card')));
   ok(name+' background inert', await p.evaluate(()=>document.querySelector('.game-layout').inert));
   ok(name+' hidden overlays not focusable', await p.evaluate(()=>['select-overlay','rule-overlay','team-overlay','overlay'].every(id=>getComputedStyle(document.getElementById(id)).visibility==='hidden')));
