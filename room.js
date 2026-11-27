@@ -231,7 +231,7 @@ function tmHostMove(id, d) {
   const team = TM.turn.team;
   if (isForbidden(d.row, d.col, team)) return;
   if (!clockMove(team)) return tmHostTimeUp(team);
-  board[d.row][d.col] = team; lastPlaced = {row: d.row, col: d.col};
+  board[d.row][d.col] = team; seq.push([d.row, d.col]); lastPlaced = {row: d.row, col: d.col};
   const w = checkWin(d.row, d.col);
   if (w) { winningCells = w; gameOver = true; scores[team]++; TM.result = {winner: team, reason: 'five'}; }
   else if (board.flat().every(v => v !== 0)) { gameOver = true; TM.result = {draw: true}; }
@@ -357,7 +357,7 @@ function tmVoteReply(ok) {
 
 function tmSnap() {
   const cd = Object.keys(TM.until).map(t => ({team: +t, ms: Math.max(0, TM.until[t] - Date.now())}));
-  return {type: 'snap', hostId: TM.hostId, players: TM.players, started: TM.started, turn: TM.turn, board, scores, gameOver, lastPlaced, winningCells, result: TM.result, cd, offers: TM.offers,
+  return {type: 'snap', hostId: TM.hostId, players: TM.players, started: TM.started, turn: TM.turn, board, scores, gameOver, lastPlaced, winningCells, seq, result: TM.result, cd, offers: TM.offers,
     rule: TM.rule, clock: CLK && TM.started ? {side: CLK.side, used: Date.now() - CLK.t0} : null};
 }
 function tmBroadcast() {
@@ -453,6 +453,7 @@ function tmGuestData(d) {
   const lp = d.lastPlaced;
   lastPlaced = lp && Number.isInteger(lp.row) && Number.isInteger(lp.col) && lp.row >= 0 && lp.row < BOARD_SIZE && lp.col >= 0 && lp.col < BOARD_SIZE ? {row: lp.row, col: lp.col} : null;
   winningCells = Array.isArray(d.winningCells) ? d.winningCells.filter(c => Array.isArray(c) && c.length === 2 && c.every(Number.isInteger)) : [];
+  seq = Array.isArray(d.seq) ? d.seq.filter(m => Array.isArray(m) && m.length === 2 && m.every(v => Number.isInteger(v) && v >= 0 && v < BOARD_SIZE)).slice(0, BOARD_SIZE * BOARD_SIZE) : [];
   tmRender();
 }
 function tmHello() {

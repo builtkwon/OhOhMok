@@ -12,6 +12,7 @@
 - **픽셀 글꼴** — 화면 전체(판 좌표 포함)에 갈무리11([Galmuri](https://github.com/quiple/galmuri), quiple, SIL OFL 1.1). 저장소에 들어 있어 외부 요청 없음(`vendor/fonts/`)
 - **앱으로 설치(PWA)** — 홈 화면에 추가하면 주소창 없이 열림(아래 [앱으로 설치](#앱으로-설치pwa))
 - **다크/라이트 테마** — 헤더 버튼으로 전환(처음엔 OS 설정을 따름). 회색 바탕 + 진녹색 강조, 바둑판은 그대로
+- 상대(AI) 차례에 누른 탭은 무시: AI가 생각하는 동안 눌린 탭이 내 차례가 되자마자 착수되던 문제를 막음(내 차례 시작 0.2초 안의 탭도 무시). 끝난 판의 결과 창을 닫은 뒤 판을 탭하면 돌 위에 둔 순서 번호를 보여주고, 다시 탭하면 숨김(안내 없는 숨은 기능, 방에서는 방장의 순서 기록을 받음)
 - 모바일 터치, 키보드 조작(방향키 + Enter/Space), 스크린리더 안내 지원
 
 배포: https://builtkwon.github.io/OhOhMok/ (GitHub Pages, `main` 브랜치 루트). [ZESTMOK](https://builtkwon.github.io/ZESTMOK/)에서 분리한 새 버전이며, ZESTMOK은 따로 계속 서비스합니다.
