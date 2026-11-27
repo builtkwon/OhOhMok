@@ -384,7 +384,8 @@
   .egg-box { text-align: center; color: #fff; font: 700 28px/1.2 var(--font-sans); text-shadow: 0 0 12px #c0392b, 0 2px 6px #000; pointer-events: none; }
   .egg-bar { width: min(80vw, 420px); height: 22px; margin: 14px auto 8px; border: 2px solid #fff; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.5); }
   .egg-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #f1c40f, #c0392b); }
-  .egg-num { font-size: 40px; }
+  .egg-sub { font-size: 20px; min-height: 1.2em; }
+  .egg-num { font-size: 40px; min-height: 1.2em; }
   .egg img { display: block; max-width: 70vw; max-height: 40vh; border-radius: 10px; margin: 10px auto 0; box-shadow: 0 0 40px #c0392b; }
   @media (prefers-reduced-motion: reduce) { .stone.egg-blink { animation: none; outline: 3px dashed #c0392b; } }
 

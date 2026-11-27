@@ -54,6 +54,8 @@ function selectRule(k) {
   hideOverlay('rule-overlay');
   if (gameMode === 'ai') { aiStones(false); showOverlay('select-overlay'); } else teamEntry();
 }
+// colour picker "뒤로": from 다시 하기 straight home (mode select), otherwise one step back (rule select)
+function selectBack() { hideOverlay('select-overlay'); showOverlay(again ? 'mode-overlay' : 'rule-overlay'); }
 function ruleBack() { hideOverlay('rule-overlay'); showOverlay('mode-overlay'); }
 function renderTc() {
   const cur = RULE.k === 'b' ? RULE.per : RULE.main;
@@ -99,7 +101,7 @@ document.addEventListener('keydown', (e) => {
   const on = (id) => document.getElementById(id).classList.contains('show');
   if (on('overlay')) closeOverlay();
   else if (on('team-overlay')) teamBack();
-  else if (on('select-overlay')) { hideOverlay('select-overlay'); showOverlay('rule-overlay'); }
+  else if (on('select-overlay')) selectBack();
   else if (on('rule-overlay')) ruleBack();
 });
 
@@ -392,22 +394,27 @@ async function bossEgg(move) {
   const blink = addStoneElement(move.row, move.col, aiPlayer, false, false); blink.classList.add('egg-blink');
   const ui = document.body.appendChild(document.createElement('div'));
   ui.className = 'egg'; ui.setAttribute('role', 'alert');
-  ui.innerHTML = `<div class="egg-box"><div>${EGG_TAPS}번 내리쳐라!</div><div class="egg-bar"><i></i></div><div class="egg-num">3</div></div>`;
-  const num = ui.querySelector('.egg-num'), bar = ui.querySelector('.egg-bar i'), box = ui.querySelector('.egg-box');
+  ui.innerHTML = `<div class="egg-box"><div>${EGG_TAPS}번 내리쳐라!</div><div class="egg-bar"><i></i></div><div class="egg-sub"></div><div class="egg-num"></div></div>`;
+  const num = ui.querySelector('.egg-num'), sub = ui.querySelector('.egg-sub'), bar = ui.querySelector('.egg-bar i'), box = ui.querySelector('.egg-box');
   announce(`${aiName()}가 이기기 직전입니다. 10초 안에 화면을 ${EGG_TAPS}번 두드리면 상을 엎을 수 있습니다`);
   ui.addEventListener('touchstart', (e) => e.preventDefault(), {passive: false}); // no zoom / scroll while tapping
-  for (const n of [3, 2, 1]) { num.textContent = n; await pause(800); }
+  // gauge fills in 1 s, then "바둑판을 탭하세요!" + 3, 2, 1; each tap then drains it, with a 10 s timer
+  bar.style.transition = rm ? 'none' : 'width 1s ease-out';
+  requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = '100%'; }));
+  await pause(1000);
+  sub.textContent = '바둑판을 탭하세요!';
+  for (const n of [3, 2, 1]) { num.textContent = n; await pause(1000); }
+  bar.style.transition = 'none';
   let taps = 0;
-  const hit = () => { if (taps < EGG_TAPS) taps++; bar.style.width = (100 * taps / EGG_TAPS) + '%'; if (!rm) wrap.animate([{transform: `translate(${rnd(4)}px,${rnd(4)}px)`}, {transform: 'none'}], {duration: 80}); };
+  const hit = () => { if (taps < EGG_TAPS) taps++; bar.style.width = (100 * (EGG_TAPS - taps) / EGG_TAPS) + '%'; if (!rm) wrap.animate([{transform: `translate(${rnd(4)}px,${rnd(4)}px)`}, {transform: 'none'}], {duration: 80}); };
   const key = (e) => { if (!e.repeat && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); hit(); } };
   ui.addEventListener('pointerdown', hit); document.addEventListener('keydown', key, true);
   const end = performance.now() + EGG_MS;
   while (taps < EGG_TAPS && performance.now() < end && board === B && gameMode === 'ai') {
-    num.textContent = `${taps} / ${EGG_TAPS} · ${Math.ceil((end - performance.now()) / 1000)}초`;
+    num.textContent = `${Math.ceil((end - performance.now()) / 1000)}초`;
     await pause(50);
   }
   ui.removeEventListener('pointerdown', hit); document.removeEventListener('keydown', key, true);
-  num.textContent = `${taps} / ${EGG_TAPS}`;
   if (board !== B || gameMode !== 'ai') { ui.remove(); flipping = false; return; } // player left mid-egg
   blink.remove();
   if (taps >= EGG_TAPS) {
@@ -425,7 +432,7 @@ async function bossEgg(move) {
     if (aiPlayer === 1) setTimeout(doAiMove, 300);
     return;
   }
-  box.innerHTML = '<div>ㅋㅋㅋ 힘이 부족하구나!</div><img src="img/wonjun-win.jpg" alt="">';
+  box.innerHTML = '<div>힘이 부족하구나!ㅋ</div><img src="img/wonjun-win.jpg" alt="">';
   announce(`실패했습니다. ${aiName()}가 비웃습니다`);
   await pause(1800);
   ui.remove();
@@ -501,11 +508,11 @@ function offerDraw(){
   if(gameOver||actOff('draw-btn'))return;
   if(gameMode==='team')return tmVoteStart('draw');
   aiOffers++;
-  if(aiLevel==='boss'){updateTurn();return voteNote(aiName()+'가 무승부를 거절했습니다 — 끝까지 둬라!');} // the boss never takes a draw
-  // other AIs take the draw when they have no open window with 3+ of their stones
-  if(TeamLogic.bestWindow(board,aiPlayer)>2){updateTurn();return voteNote('AI가 무승부를 거절했습니다 — 게임이 계속됩니다!');}
+  const boss=aiLevel==='boss';
+  // AI (boss too) takes the draw only when it has no open window with 3+ of its stones
+  if(TeamLogic.bestWindow(board,aiPlayer)>2){updateTurn();return voteNote(boss?aiName()+'가 무승부를 거절했습니다 — 끝까지 둬라!':'AI가 무승부를 거절했습니다 — 게임이 계속됩니다!');}
   gameOver=true; aiLearn(0); updateTurn(); clockDraw();
-  showDrawOverlay(`합의 무승부 (${aiName()} 수락)`);
+  showDrawOverlay(boss?`${aiName()}: "더 이상 수가 안 보이나 보군." — 합의 무승부`:`합의 무승부 (${aiName()} 수락)`);
 }
 function resign(){
   if(gameOver||actOff('resign-btn'))return;
