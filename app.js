@@ -262,9 +262,25 @@ function aiMemLoad() {
   let m = null;
   try { m = JSON.parse(localStorage.getItem(memKey())); } catch (e) {}
   GomokuAI.setMemory(m);
+  aiBookLoad();
+}
+// shared boss book (ai-book.js, built by tools/build-book.js from collected games): boss level only, loaded on first use
+function aiBookLoad() {
+  GomokuAI.setBook(aiLevel === 'boss' ? window.AI_BOOK : null);
+  if (aiLevel !== 'boss' || window.AI_BOOK || document.getElementById('ai-book')) return;
+  const s = document.createElement('script');
+  s.id = 'ai-book'; s.src = 'ai-book.js'; s.onload = aiBookLoad;
+  document.head.appendChild(s);
+}
+// every finished boss game goes to the collection sheet (docs/boss-book.md); fire and forget, no reply needed
+const BOOK_SEND = 'https://script.google.com/macros/s/AKfycbzzlCQ6-R-xHjQHcxYCfD3rmV085APntRrgwpRsyBXEYcjaZ-M6bYVoWHATb4koW6yFJw/exec';
+function aiSend(winner) {
+  if (!BOOK_SEND || aiLevel !== 'boss') return;
+  try { fetch(BOOK_SEND, {method: 'POST', mode: 'no-cors', keepalive: true, body: JSON.stringify({s: 'ohohmok', ai: aiPlayer, w: winner, m: aiHist.map(h => [h.row, h.col])})}).catch(() => {}); } catch (e) {}
 }
 function aiLearn(winner) {
   if (gameMode !== 'ai' || aiLevel === 'easy' || !aiHist.length) return;
+  aiSend(winner);
   GomokuAI.learn(aiHist, aiPlayer, winner);
   try { localStorage.setItem(memKey(), JSON.stringify(GomokuAI.getMemory())); } catch (e) {} // full/blocked storage: learn for this tab only
   aiHist = [];

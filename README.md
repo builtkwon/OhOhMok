@@ -55,6 +55,10 @@ AI는 대국 결과를 이 브라우저(`localStorage`, 난이도별로 따로)�
 - 저장 키는 `ohohmok-level`, `ohohmok-mem-<난이도>`입니다. 같은 주소(`builtkwon.github.io`)의 ZESTMOK에서 쌓은 레벨·학습 기록은 이쪽 키가 없을 때마다 복사해 오고, ZESTMOK 쪽 기록은 지우지 않습니다.
 - 같은 국면(돌 배치와 차례 일치)과 그 판을 **90°·180°·270° 돌린 국면**까지 함께 기억합니다(돌린 판에서 같은 수를 둬도 알아봄, 좌우 대칭은 미포함). 최대 4,000개 국면까지 저장하고 오래된 것부터 지웁니다. 브라우저 데이터를 지우면 초기화됩니다.
 
+### 보스 공용 학습 (모든 방문자)
+
+보스 대국이 끝나면 기보(수순만, 개인정보 없음)를 구글 시트로 익명 전송합니다(페이지 하단에 작게 안내). 모은 기보를 `tools/build-book.js`로 검증해 `ai-book.js`(공용 학습)로 만들고 배포하면, 보스를 고른 모든 브라우저가 자기 학습과 함께 씁니다. ZESTMOK과 같은 시트·같은 파일. 설정·갱신 방법: [`docs/boss-book.md`](docs/boss-book.md)
+
 `node tests/ladder.js`로 난이도별 상대 전적을 측정할 수 있습니다(느림).
 
 ## 실행
@@ -108,6 +112,8 @@ npm run serve   # http://localhost:8080
 | `room.js` | 방 만들기(온라인, PeerJS 호스트 스타·방장 승계·사진 전달) |
 | `clock.js` | 시계(일반전/속기전 표시·시간 초과) |
 | `ai.js` | AI (패턴 평가 + 알파베타 탐색 + 대국 학습) |
+| `ai-book.js` | 보스 공용 학습 데이터 (`tools/build-book.js`가 생성, 보스 단계에서만 지연 로드) |
+| `tools/build-book.js` | 수집 시트 기보 → `ai-book.js` |
 | `team.js` | 방 규칙(순번, 시작 조건, 방장 승계, 사진 주소 검사) + 시간 제한(일반전/속기전) 순수 로직 |
 | `img/` | JOONSAMA 보스 이미지, 파비콘, 공유용 OG 이미지, 앱 아이콘(`icon-192/512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`), AI 얼굴 SVG(`ai-face-{b,w}.svg`·`ai-face-rare-{b,w}.svg`, b=검은 잉크/w=흰 잉크) (기본 돌은 사진 없이 CSS) |
 | `manifest.webmanifest` | PWA 매니페스트(이름 오오목, standalone, 아이콘) |
