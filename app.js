@@ -47,7 +47,7 @@ const TC_OPTS = {n: [[0, '없음'], [300000, '5분'], [600000, '10분']], b: [[5
 const ruleName = (r) => r.k === 'b' ? `속기전 · 한 수 ${r.per / 1000}초` : r.main ? `일반전 · ${r.main / 60000}분 + 초읽기 30초×3` : '일반전 · 시간 무제한';
 function selectRule(k) {
   RULE = k === 'b' ? {k, per: 5000} : {k, main: 0};
-  renderTc();
+  again = false; renderTc();
   hideOverlay('rule-overlay');
   if (gameMode === 'ai') { aiStones(false); showOverlay('select-overlay'); } else teamEntry();
 }
@@ -60,7 +60,7 @@ function renderTc() {
       const b = box.appendChild(document.createElement('button'));
       b.type = 'button'; b.className = 'level-chip'; b.textContent = label;
       b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', cur === v);
-      b.onclick = () => { RULE = RULE.k === 'b' ? {k: 'b', per: v} : {k: 'n', main: v}; renderTc(); };
+      b.onclick = () => { RULE = RULE.k === 'b' ? {k: 'b', per: v} : {k: 'n', main: v}; renderTc(); selTitle(); };
     }
   });
 }
@@ -121,8 +121,10 @@ function applyBoss() {
 }
 let AI_RARE = 0.05; // chance an AI stone gets the rare face (tests set 1)
 const aiRare = new Set(); // cells (row*15+col) of this game's rare-faced AI stones, so refreshStones keeps them
+let again = false; // colour picker opened by "다시 하기"
+function selTitle() { document.getElementById('select-title').textContent = again ? `다시 하기 · ${LEVEL_NAMES[aiLevel]} · ${ruleName(RULE)}` : 'AI 대전 설정'; }
 function setLevel(l) {
-  aiLevel = l;
+  aiLevel = l; selTitle();
   try { localStorage.setItem('ohohmok-level', l); } catch (e) {}
   document.querySelectorAll('.level-chip[data-level]').forEach(b => b.setAttribute('aria-checked', b.dataset.level === l));
 }
@@ -475,7 +477,12 @@ function showDrawOverlay(sub){ showEndOverlay('무승부!',sub||'보드가 가�
 
 function closeOverlay(){ hideOverlay('overlay'); }
 
-function rematch(){ if(gameMode==='team') return tmRematch(); newGame(); }
+// AI: back to the colour picker with the same level and time, titled with the game being replayed (team: host restarts into the lobby)
+function rematch(){
+  if(gameMode==='team') return tmRematch();
+  closeOverlay(); clockStop();
+  again=true; selTitle(); showOverlay('select-overlay');
+}
 
 function showEndOverlay(title,sub){
   const stone=document.getElementById('modal-stone');
