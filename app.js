@@ -173,7 +173,7 @@ function updateBadges() {
 function initBoard() {
   aiHist = []; aiOffers = 0; voteNote(''); aiRare.clear();
   board = Array.from({length: BOARD_SIZE}, () => Array(BOARD_SIZE).fill(0));
-  lastPlaced = null; winningCells = []; seq = []; orderOk = false; stonesLayer.classList.remove('show-order');
+  lastPlaced = null; winningCells = []; seq = []; orderOk = false; eggUsed = false; stonesLayer.classList.remove('show-order');
   stonesLayer.innerHTML = '';
   stonesLayer.appendChild(ghost);
   drawBoard();
@@ -341,6 +341,7 @@ function doAiMove() {
     aiThinking = false; setAiThinking(false);
     if (gameOver) return; // resigned while the AI was thinking
     if (move && move.doomed && aiLevel === 'boss' && !flipUsed) return flipTable();
+    if (move && aiLevel === 'boss' && !eggUsed && makesFive(move.row, move.col, aiPlayer)) return bossEgg(move);
     if (move) doPlaceStone(move.row, move.col, false);
   }, 80);
 }
@@ -350,27 +351,88 @@ let flipUsed = false, flipping = false;
 async function flipTable() {
   flipUsed = aiThinking = flipping = true; updateTurn(); // updateTurn: disables resign
   aiLearn(humanPlayer); // the flipped game = one AI loss (stored in all 4 rotations), recorded before the animation so leaving mid-flip still counts
-  const B = board, wrap = document.querySelector('.board-wrap'), rm = matchMedia('(prefers-reduced-motion: reduce)').matches, rnd = (a) => (Math.random() - 0.5) * 2 * a;
+  const B = board, wrap = document.querySelector('.board-wrap'), rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const say = document.body.appendChild(document.createElement('div'));
   say.innerHTML = '<img src="img/wonjun-rage.jpg" alt="" style="display:block;max-width:80vw;max-height:45vh;border-radius:10px;box-shadow:0 0 40px #c0392b;margin:0 auto 10px"><div>상 엎어!! (╯°□°)╯︵ ┻━┻</div>';
   say.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;pointer-events:none;text-align:center;font:700 24px/1.2 var(--font-sans);color:#fff;text-shadow:0 0 12px #c0392b,0 2px 6px #000;white-space:nowrap';
   announce('JOONSAMA가 상을 엎었습니다. 대국이 처음부터 다시 시작됩니다');
-  if (rm) await new Promise(r => setTimeout(r, 1500));
-  else {
-    await wrap.animate(Array.from({length: 18}, () => ({transform: `translate(${rnd(14)}px,${rnd(14)}px) rotate(${rnd(1.5)}deg)`})), {duration: 900}).finished; // earthquake
-    document.querySelectorAll('#stones-layer .stone').forEach(el => el.animate([{transform: 'translate(-50%,-50%)'}, {transform: `translate(-50%,-50%) translate(${rnd(400)}px,${-80 - Math.random() * 260}px) rotate(${rnd(720)}deg)`, opacity: 0}], {duration: 900, easing: 'ease-out', fill: 'forwards'}));
-    await wrap.animate([{transform: 'none', opacity: 1}, {transform: 'perspective(900px) rotateX(80deg) translateY(60px)', opacity: 0}], {duration: 900, easing: 'ease-in', fill: 'forwards'}).finished; // board tips over
-  }
+  await flipAway(wrap, rm);
   say.remove();
   if (board !== B || gameMode !== 'ai' || gameOver) { flipping = false; wrap.getAnimations().forEach(a => a.cancel()); return; } // player left mid-flip
   aiPlayer = 1; humanPlayer = 2; // AI always opens the restarted game (black)
   rage = true; updateBadges(); // AI stones = angry photo for this game only
   gameOver = false; currentPlayer = 1;
   initBoard(); clockStart(RULE); updateTurn();
-  wrap.getAnimations().forEach(a => a.cancel());
-  if (!rm) await wrap.animate([{transform: 'perspective(900px) rotateX(-80deg) scale(.8)', opacity: 0}, {transform: 'none', opacity: 1}], {duration: 600, easing: 'cubic-bezier(.34,1.56,.64,1)'}).finished; // reassembles
+  await flipBack(wrap, rm);
   aiThinking = flipping = false; updateTurn();
   setTimeout(doAiMove, 300);
+}
+const rnd = (a) => (Math.random() - 0.5) * 2 * a;
+async function flipAway(wrap, rm) { // earthquake -> stones fly -> board tips over
+  if (rm) return new Promise(r => setTimeout(r, 1500));
+  await wrap.animate(Array.from({length: 18}, () => ({transform: `translate(${rnd(14)}px,${rnd(14)}px) rotate(${rnd(1.5)}deg)`})), {duration: 900}).finished;
+  document.querySelectorAll('#stones-layer .stone').forEach(el => el.animate([{transform: 'translate(-50%,-50%)'}, {transform: `translate(-50%,-50%) translate(${rnd(400)}px,${-80 - Math.random() * 260}px) rotate(${rnd(720)}deg)`, opacity: 0}], {duration: 900, easing: 'ease-out', fill: 'forwards'}));
+  await wrap.animate([{transform: 'none', opacity: 1}, {transform: 'perspective(900px) rotateX(80deg) translateY(60px)', opacity: 0}], {duration: 900, easing: 'ease-in', fill: 'forwards'}).finished;
+}
+async function flipBack(wrap, rm) { // the board reassembles
+  wrap.getAnimations().forEach(a => a.cancel());
+  if (!rm) await wrap.animate([{transform: 'perspective(900px) rotateX(-80deg) scale(.8)', opacity: 0}, {transform: 'none', opacity: 1}], {duration: 600, easing: 'cubic-bezier(.34,1.56,.64,1)'}).finished;
+}
+function makesFive(r, c, p) { board[r][c] = p; const w = checkWin(r, c); board[r][c] = 0; return !!w; }
+
+// Easter egg: the boss is about to make five -> its stone blinks, "250번 내리쳐라!" + 3, 2, 1, then EGG_MS of taps anywhere.
+// EGG_TAPS taps = I flip the table: game void (score unchanged, learned as the boss's win), new game with the same colours.
+// Fewer = the boss laughs and plays the five. Once per game.
+const EGG_TAPS = 250, EGG_MS = 10000;
+let eggUsed = false;
+const pause = (ms) => new Promise(r => setTimeout(r, ms));
+async function bossEgg(move) {
+  eggUsed = aiThinking = flipping = true; updateTurn(); // updateTurn: disables draw / resign
+  const B = board, wrap = document.querySelector('.board-wrap'), rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const blink = addStoneElement(move.row, move.col, aiPlayer, false, false); blink.classList.add('egg-blink');
+  const ui = document.body.appendChild(document.createElement('div'));
+  ui.className = 'egg'; ui.setAttribute('role', 'alert');
+  ui.innerHTML = `<div class="egg-box"><div>${EGG_TAPS}번 내리쳐라!</div><div class="egg-bar"><i></i></div><div class="egg-num">3</div></div>`;
+  const num = ui.querySelector('.egg-num'), bar = ui.querySelector('.egg-bar i'), box = ui.querySelector('.egg-box');
+  announce(`${aiName()}가 이기기 직전입니다. 10초 안에 화면을 ${EGG_TAPS}번 두드리면 상을 엎을 수 있습니다`);
+  ui.addEventListener('touchstart', (e) => e.preventDefault(), {passive: false}); // no zoom / scroll while tapping
+  for (const n of [3, 2, 1]) { num.textContent = n; await pause(800); }
+  let taps = 0;
+  const hit = () => { if (taps < EGG_TAPS) taps++; bar.style.width = (100 * taps / EGG_TAPS) + '%'; if (!rm) wrap.animate([{transform: `translate(${rnd(4)}px,${rnd(4)}px)`}, {transform: 'none'}], {duration: 80}); };
+  const key = (e) => { if (!e.repeat && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); hit(); } };
+  ui.addEventListener('pointerdown', hit); document.addEventListener('keydown', key, true);
+  const end = performance.now() + EGG_MS;
+  while (taps < EGG_TAPS && performance.now() < end && board === B && gameMode === 'ai') {
+    num.textContent = `${taps} / ${EGG_TAPS} · ${Math.ceil((end - performance.now()) / 1000)}초`;
+    await pause(50);
+  }
+  ui.removeEventListener('pointerdown', hit); document.removeEventListener('keydown', key, true);
+  num.textContent = `${taps} / ${EGG_TAPS}`;
+  if (board !== B || gameMode !== 'ai') { ui.remove(); flipping = false; return; } // player left mid-egg
+  blink.remove();
+  if (taps >= EGG_TAPS) {
+    box.innerHTML = '<div>상 엎어!! ┻━┻︵ヽ(`Д´)ﾉ︵ ┻━┻</div>';
+    announce('상을 엎었습니다. 이번 판은 무효, 같은 조건으로 새 판을 시작합니다');
+    aiHist.push({p: aiPlayer, row: move.row, col: move.col, key: GomokuAI.posKey(board, aiPlayer)});
+    aiLearn(aiPlayer); // learned as the boss's win: he had it
+    await flipAway(wrap, rm);
+    ui.remove();
+    if (board !== B || gameMode !== 'ai') { flipping = false; wrap.getAnimations().forEach(a => a.cancel()); return; }
+    gameOver = false; currentPlayer = 1;
+    initBoard(); clockStart(RULE); updateTurn();
+    await flipBack(wrap, rm);
+    aiThinking = flipping = false; updateTurn();
+    if (aiPlayer === 1) setTimeout(doAiMove, 300);
+    return;
+  }
+  box.innerHTML = '<div>ㅋㅋㅋ 힘이 부족하구나!</div><img src="img/wonjun-win.jpg" alt="">';
+  announce(`실패했습니다. ${aiName()}가 비웃습니다`);
+  await pause(1800);
+  ui.remove();
+  flipping = false;
+  if (board !== B || gameMode !== 'ai') return;
+  aiThinking = false;
+  doPlaceStone(move.row, move.col, false);
 }
 
 function setAiThinking(on) {
@@ -439,13 +501,16 @@ function offerDraw(){
   if(gameOver||actOff('draw-btn'))return;
   if(gameMode==='team')return tmVoteStart('draw');
   aiOffers++;
-  // AI (boss too) takes the draw when it has no open window with 3+ of its stones
+  if(aiLevel==='boss'){updateTurn();return voteNote(aiName()+'가 무승부를 거절했습니다 — 끝까지 둬라!');} // the boss never takes a draw
+  // other AIs take the draw when they have no open window with 3+ of their stones
   if(TeamLogic.bestWindow(board,aiPlayer)>2){updateTurn();return voteNote('AI가 무승부를 거절했습니다 — 게임이 계속됩니다!');}
   gameOver=true; aiLearn(0); updateTurn(); clockDraw();
   showDrawOverlay(`합의 무승부 (${aiName()} 수락)`);
 }
 function resign(){
-  if(gameOver||actOff('resign-btn')||!confirm('정말 항복할까요?'))return; // disabled mid table-flip: the flip already learned this game as an AI loss
+  if(gameOver||actOff('resign-btn'))return;
+  if(gameMode==='ai'&&aiLevel==='boss')return voteNote(aiName()+'가 항복을 거절했습니다 — 끝까지 둬라!'); // the boss never accepts a resignation
+  if(!confirm('정말 항복할까요?'))return; // disabled mid table-flip: the flip already learned this game as an AI loss
   if(gameMode==='team')return tmVoteStart('resign');
   gameOver=true; scores[aiPlayer]++; updateScores(); aiLearn(aiPlayer); updateTurn(); clockDraw(); // learned as an AI win
   announce('항복');

@@ -360,12 +360,13 @@
   }
 
   /* hidden: after a finished game, tapping the board toggles move numbers (#stones-layer.show-order) */
-.show-order .stone[data-n]::before {
+#stones-layer.show-order .stone[data-n]::before { /* id: beats the AI face rule (body.ai-N .stone...::before) */
   content: attr(data-n);
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   font: 700 calc(var(--stone-size) * 0.42)/1 var(--font-sans);
   color: #fff; text-shadow: 0 0 3px #000, 0 0 2px #000, 0 0 1px #000;
+  background: none; /* hides the AI pixel face (same ::before) while numbers show */
 }
 .show-order .stone.last-placed::after { display: none; }
 .stone.last-placed::after {
@@ -375,6 +376,17 @@
     border-radius: 50%;
     background: rgba(255,100,50,0.8);
   }
+
+  /* boss easter egg: "250번 내리쳐라!" (bossEgg) */
+  .stone.egg-blink { animation: eggBlink 0.5s steps(2, jump-none) infinite; }
+  @keyframes eggBlink { 50% { opacity: 0.15; } }
+  .egg { position: fixed; inset: 0; z-index: 60; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; background: rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; }
+  .egg-box { text-align: center; color: #fff; font: 700 28px/1.2 var(--font-sans); text-shadow: 0 0 12px #c0392b, 0 2px 6px #000; pointer-events: none; }
+  .egg-bar { width: min(80vw, 420px); height: 22px; margin: 14px auto 8px; border: 2px solid #fff; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.5); }
+  .egg-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #f1c40f, #c0392b); }
+  .egg-num { font-size: 40px; }
+  .egg img { display: block; max-width: 70vw; max-height: 40vh; border-radius: 10px; margin: 10px auto 0; box-shadow: 0 0 40px #c0392b; }
+  @media (prefers-reduced-motion: reduce) { .stone.egg-blink { animation: none; outline: 3px dashed #c0392b; } }
 
   /* Hover ghost stone */
   .ghost-stone {
