@@ -54,6 +54,21 @@ for (const [name,opts] of [['desktop',{viewport:{width:1280,height:800}}],['mobi
   const st=await p.evaluate(()=>({b:board[6][6],cnt:board.flat().filter(Boolean).length,live:document.getElementById('sr-live').textContent}));
   ok(name+' keyboard placed at (6,6) and AI replied', st.b===1&&st.cnt===2); console.log('  live:',st.live);
   await p.evaluate(()=>{gameOver=true;showWinOverlay(1);}); ok(name+' result title shows AI level', (await p.textContent('#overlay .modal-title'))==='AI 대전 · 어려움'); await p.evaluate(()=>{closeOverlay();gameOver=false;});
+  // "다시 하기" after an AI game: colour picker again, titled with the same level and time; picking starts a fresh board
+  await p.evaluate(()=>{gameOver=true;showWinOverlay(1);}); await p.click('#overlay .modal-btns .btn >> nth=0'); await p.waitForTimeout(500);
+  const rm=await p.evaluate(()=>({sel:document.getElementById('select-overlay').classList.contains('show'),mode:document.getElementById('mode-overlay').classList.contains('show'),t:document.getElementById('select-title').textContent}));
+  ok(name+' rematch opens colour picker (not mode select)', rm.sel&&!rm.mode); ok(name+' rematch title names the game', rm.t.startsWith('다시 하기 · 어려움 · ')); console.log('  title:',rm.t);
+  await p.click('#select-overlay .stone-choice >> nth=0'); await p.waitForTimeout(400);
+  ok(name+' rematch started a new game', await p.evaluate(()=>!gameOver&&board.flat().filter(Boolean).length===0&&humanPlayer===1));
+  // taps made before my turn began (queued during the AI's search) are dropped; later ones go through
+  const tg=await p.evaluate(()=>{updateTurn();return {early:boardTap({timeStamp:turnAt-500}),grace:boardTap({timeStamp:turnAt+50}),late:boardTap({timeStamp:turnAt+TAP_GRACE+1})};});
+  ok(name+' early tap dropped, later tap accepted', !tg.early&&!tg.grace&&tg.late);
+  // hidden move order: after the result is closed, a board tap toggles numbers on the stones
+  await p.evaluate(()=>{initBoard();doPlaceStone(7,7);doPlaceStone(7,8);doPlaceStone(8,8);gameOver=true;});
+  ok(name+' no numbers before the result is closed', await p.evaluate(()=>{boardTap({timeStamp:1e12});return !stonesLayer.classList.contains('show-order');}));
+  const od=await p.evaluate(()=>{closeOverlay();boardTap({timeStamp:1e12});const on=stonesLayer.classList.contains('show-order');const n=[...stonesLayer.querySelectorAll('.stone')].map(e=>e.dataset.n).join(',');boardTap({timeStamp:1e12});return {on,n,off:!stonesLayer.classList.contains('show-order')};});
+  ok(name+' tap after game shows move order 1,2,3 and toggles off', od.on&&od.n==='1,2,3'&&od.off);
+  await p.evaluate(()=>{gameOver=false;initBoard();board[6][6]=1;board[7][7]=2;refreshStones();});
   await p.evaluate(()=>newGame()); ok(name+' confirm on leaving AI game', dialogs.some(m=>m.includes('종료')));
   ok(name+' still in game after cancel', await p.evaluate(()=>board.flat().filter(Boolean).length===2));
   // AI pixel face (AI = white here): on the AI's board/panel stones only, rare forced via AI_RARE, none for the boss or in rooms

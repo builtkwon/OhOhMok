@@ -10,6 +10,9 @@ let gameOver = false;
 let scores = {1: 0, 2: 0};
 let lastPlaced = null;
 let winningCells = [];
+let seq = []; // move order [[row, col], ...] of the current game (rooms: the host's list, sent in the snapshot)
+let orderOk = false; // the finished game's result was closed: a board tap now toggles move numbers
+let turnAt = 0, wasMyTurn = false; // when my turn last began (performance.now()); taps made before it are dropped
 let humanPlayer = 1;
 let aiPlayer = 2;
 let aiHist = []; // moves of the current AI game, fed to GomokuAI.learn when it ends
@@ -47,7 +50,7 @@ const TC_OPTS = {n: [[0, '없음'], [300000, '5분'], [600000, '10분']], b: [[5
 const ruleName = (r) => r.k === 'b' ? `속기전 · 한 수 ${r.per / 1000}초` : r.main ? `일반전 · ${r.main / 60000}분 + 초읽기 30초×3` : '일반전 · 시간 무제한';
 function selectRule(k) {
   RULE = k === 'b' ? {k, per: 5000} : {k, main: 0};
-  renderTc();
+  again = false; renderTc();
   hideOverlay('rule-overlay');
   if (gameMode === 'ai') { aiStones(false); showOverlay('select-overlay'); } else teamEntry();
 }
@@ -60,7 +63,7 @@ function renderTc() {
       const b = box.appendChild(document.createElement('button'));
       b.type = 'button'; b.className = 'level-chip'; b.textContent = label;
       b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', cur === v);
-      b.onclick = () => { RULE = RULE.k === 'b' ? {k: 'b', per: v} : {k: 'n', main: v}; renderTc(); };
+      b.onclick = () => { RULE = RULE.k === 'b' ? {k: 'b', per: v} : {k: 'n', main: v}; renderTc(); selTitle(); };
     }
   });
 }
@@ -121,8 +124,10 @@ function applyBoss() {
 }
 let AI_RARE = 0.05; // chance an AI stone gets the rare face (tests set 1)
 const aiRare = new Set(); // cells (row*15+col) of this game's rare-faced AI stones, so refreshStones keeps them
+let again = false; // colour picker opened by "다시 하기"
+function selTitle() { document.getElementById('select-title').textContent = again ? `다시 하기 · ${LEVEL_NAMES[aiLevel]} · ${ruleName(RULE)}` : 'AI 대전 설정'; }
 function setLevel(l) {
-  aiLevel = l;
+  aiLevel = l; selTitle();
   try { localStorage.setItem('ohohmok-level', l); } catch (e) {}
   document.querySelectorAll('.level-chip[data-level]').forEach(b => b.setAttribute('aria-checked', b.dataset.level === l));
 }
@@ -168,7 +173,7 @@ function updateBadges() {
 function initBoard() {
   aiHist = []; aiOffers = 0; voteNote(''); aiRare.clear();
   board = Array.from({length: BOARD_SIZE}, () => Array(BOARD_SIZE).fill(0));
-  lastPlaced = null; winningCells = [];
+  lastPlaced = null; winningCells = []; seq = []; orderOk = false; stonesLayer.classList.remove('show-order');
   stonesLayer.innerHTML = '';
   stonesLayer.appendChild(ghost);
   drawBoard();
@@ -212,6 +217,8 @@ function addStoneElement(row, col, player, isLast, isWin) {
   el.className = `stone ${player===1?'black-stone':'white-stone'}`;
   el.style.left = (MARGIN+col*CELL)+'px'; el.style.top = (MARGIN+row*CELL)+'px';
   el.dataset.row = row; el.dataset.col = col;
+  const n = seq.findIndex(([r, c]) => r === row && c === col);
+  if (n >= 0) el.dataset.n = n + 1;
   if (isLast) el.classList.add('last-placed');
   if (isWin) el.classList.add('winning');
   if (aiRare.has(row * BOARD_SIZE + col)) el.classList.add('rare');
@@ -298,7 +305,7 @@ function doPlaceStone(row, col, triggerAi) {
   if (gameOver || board[row][col] !== 0) return;
   if (!clockMove(currentPlayer)) return timeUp(currentPlayer);
   if (gameMode === 'ai') aiHist.push({p: currentPlayer, row, col, key: GomokuAI.posKey(board, currentPlayer)});
-  board[row][col] = currentPlayer;
+  board[row][col] = currentPlayer; seq.push([row, col]);
   document.querySelectorAll('.stone.last-placed').forEach(e=>e.classList.remove('last-placed'));
   lastPlaced = {row, col};
   announce((currentPlayer===1?'흑돌 ':'백돌 ')+coordName(row,col)+' 착수');
@@ -386,6 +393,10 @@ function checkWin(row,col){
 
 // ─── UI UPDATES ───────────────────────────────────────────────
 function updateTurn(){
+  const mt = !gameOver && myTurn();
+  if (mt && !wasMyTurn) turnAt = performance.now();
+  wasMyTurn = mt;
+  if (!gameOver) { orderOk = false; stonesLayer.classList.remove('show-order'); } // numbers belong to a finished game only
   applyBoss();
   const dot=document.getElementById('turn-dot');
   const text=document.getElementById('turn-text');
@@ -473,9 +484,14 @@ function showWinOverlay(player){
 
 function showDrawOverlay(sub){ showEndOverlay('무승부!',sub||'보드가 가득 찼습니다'); }
 
-function closeOverlay(){ hideOverlay('overlay'); }
+function closeOverlay(){ hideOverlay('overlay'); if(gameOver) orderOk = true; }
 
-function rematch(){ if(gameMode==='team') return tmRematch(); newGame(); }
+// AI: back to the colour picker with the same level and time, titled with the game being replayed (team: host restarts into the lobby)
+function rematch(){
+  if(gameMode==='team') return tmRematch();
+  closeOverlay(); clockStop();
+  again=true; selTitle(); showOverlay('select-overlay');
+}
 
 function showEndOverlay(title,sub){
   const stone=document.getElementById('modal-stone');
@@ -548,13 +564,20 @@ clickCanvas.addEventListener('keydown', (e) => {
     announce(coordName(kb.row, kb.col) + (v ? (v === 1 ? ', 흑돌' : ', 백돌') : ', 빈 칸'));
   } else if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
-    handleClick(kb.row, kb.col);
+    if (boardTap(e)) handleClick(kb.row, kb.col);
     kbShow();
   }
 });
 
+// A tap made while the opponent (AI) was moving is queued by the browser during the AI's blocking search and arrives
+// once it is my turn: drop it, and any tap within TAP_GRACE ms of my turn starting. After a finished game: move numbers.
+const TAP_GRACE = 200;
+function boardTap(e) {
+  if (gameOver) { if (orderOk && seq.length) stonesLayer.classList.toggle('show-order'); return false; }
+  return !aiThinking && e.timeStamp >= turnAt + TAP_GRACE;
+}
 clickCanvas.addEventListener('click',(e)=>{
-  if(gameOver||aiThinking)return;
+  if(!boardTap(e))return;
   const rect=clickCanvas.getBoundingClientRect();
   const scaleX=CANVAS_SIZE/rect.width,scaleY=CANVAS_SIZE/rect.height;
   const x=(e.clientX-rect.left)*scaleX,y=(e.clientY-rect.top)*scaleY;
@@ -563,8 +586,8 @@ clickCanvas.addEventListener('click',(e)=>{
 });
 
 clickCanvas.addEventListener('touchend',(e)=>{
-  if(gameOver||aiThinking)return;
   e.preventDefault();
+  if(!boardTap(e))return;
   const touch=e.changedTouches[0];
   const rect=clickCanvas.getBoundingClientRect();
   const scaleX=CANVAS_SIZE/rect.width,scaleY=CANVAS_SIZE/rect.height;

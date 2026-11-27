@@ -359,7 +359,16 @@
     100% { box-shadow: 0 3px 10px rgba(0,0,0,0.7), 0 0 0 8px rgba(255,220,50,0); }
   }
 
-  .stone.last-placed::after {
+  /* hidden: after a finished game, tapping the board toggles move numbers (#stones-layer.show-order) */
+.show-order .stone[data-n]::before {
+  content: attr(data-n);
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font: 700 calc(var(--stone-size) * 0.42)/1 var(--font-sans);
+  color: #fff; text-shadow: 0 0 3px #000, 0 0 2px #000, 0 0 1px #000;
+}
+.show-order .stone.last-placed::after { display: none; }
+.stone.last-placed::after {
     content: '';
     position: absolute;
     inset: 30%;
