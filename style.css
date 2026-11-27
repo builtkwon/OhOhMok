@@ -377,7 +377,7 @@
     background: rgba(255,100,50,0.8);
   }
 
-  /* boss easter egg: "250번 내리쳐라!" (bossEgg) */
+  /* boss easter egg: "300번 내리쳐라!" (bossEgg) */
   .stone.egg-blink { animation: eggBlink 0.5s steps(2, jump-none) infinite; }
   @keyframes eggBlink { 50% { opacity: 0.15; } }
   .egg { position: fixed; inset: 0; z-index: 60; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; background: rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; }
